@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>SEGI 缺货SKU对比</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#f1f3f6; color:#1a1d23; font-family:'Inter','PingFang SC','Microsoft YaHei',-apple-system,sans-serif; padding:24px; }
+
+  h1 { font-size:18px; font-weight:600; color:#1a1d23; letter-spacing:-.3px; margin:0 0 2px; }
+  .meta { font-size:11px; color:#8892a4; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+
+  .controls { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; background:#fff; border:1px solid #e2e5eb; padding:8px 12px; }
+  .controls label { font-size:11px; color:#8892a4; }
+  .controls select { padding:2px 6px; border:1px solid #e2e5eb; font-size:12px; background:#fff; color:#1a1d23; }
+  .controls select:focus { outline:none; border-color:#4455cc; }
+  .btn-compare { padding:3px 12px; border:1px solid #d0d4dd; background:#fff; font-size:11px; font-weight:500; cursor:pointer; color:#1a1d23; }
+  .btn-primary { background:#4455cc; color:#fff; border:1px solid #4455cc; }
+  .btn-primary:hover { background:#3344bb; }
+
+  .view-toggle { display:inline-flex; }
+  .view-toggle button { padding:3px 10px; border:1px solid #d0d4dd; background:#fff; font-size:10px; font-weight:500; cursor:pointer; color:#8892a4; }
+  .view-toggle button.active { background:#4455cc; color:#fff; border-color:#4455cc; }
+  .view-toggle button+button { border-left:none; }
+
+  .summary { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .card { background:#fff; border:1px solid #e2e5eb; padding:12px 16px; min-width:100px; }
+  .card .num { font-size:20px; font-weight:700; color:#1a1d23; }
+  .card .label { font-size:10px; color:#8892a4; margin-top:3px; }
+  .card.better .num { color:#2d8659; }
+  .card.worse .num { color:#cc3333; }
+
+  .section { background:#fff; border:1px solid #e2e5eb; padding:12px; margin-bottom:12px; }
+  .section h3 { font-size:11px; font-weight:600; color:#1a1d23; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+  .section h3::after { content:''; flex:1; height:1px; background:#e2e5eb; }
+
+  .new-card { display:flex; align-items:center; gap:10px; border:1px solid #e2e5eb; padding:8px 10px; margin-bottom:4px; background:#fff; }
+  .new-card-img { width:96px; height:96px; object-fit:cover; flex-shrink:0; border:1px solid #e2e5eb; }
+  .new-card-info { flex:1; }
+  .new-card-sku { font-size:11px; font-family:SFMono-Regular,Consolas,monospace; font-weight:500; color:#1a1d23; }
+  .new-card-name { font-size:10px; color:#6b7280; }
+  .new-card-nums { text-align:right; }
+  .new-card-today { font-size:14px; font-weight:700; color:#cc3333; }
+  .new-card-yest { font-size:10px; color:#8892a4; }
+  .new-card-badge { display:inline-block; background:#d97706; color:#fff; font-size:9px; padding:1px 6px; margin-top:2px; }
+
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th { background:#f1f3f6; color:#4a5568; font-weight:500; font-size:10px; padding:5px 6px; text-align:left; border-bottom:2px solid #d0d4dd; }
+  td { padding:5px 6px; border-bottom:1px solid #e8eaf0; color:#1a1d23; }
+  tr:nth-child(even) td { background:#f8f9fb; }
+  .neg { color:#cc3333; font-weight:600; }
+  .worse { color:#cc3333; font-weight:600; }
+  .better { color:#2d8659; font-weight:600; }
+  .same { color:#8892a4; }
+  .na { color:#cbd5e1; }
+  .th-comp { background:#d0d4dd !important; color:#1a1d23 !important; }
+  .sku-img { width:104px; height:104px; object-fit:cover; display:block; border:1px solid #e2e5eb; }
+  .no-img { color:#8892a4; font-size:10px; }
+
+  .spu-row td { border-top:2px solid #4455cc; background:#f8f9fb; }
+  .spu-total { font-size:13px; font-weight:600; color:#cc3333; }
+  .spu-sku-detail { font-size:10px; color:#6b7280; line-height:1.6; }
+  .spu-sku-detail .sku-item { display:inline-block; margin-right:6px; white-space:nowrap; }
+  .spu-sku-detail .sku-neg { color:#cc3333; font-weight:500; }
+
+  .trend-tooltip { position:fixed; z-index:9999; background:#fff; border:1px solid #d0d4dd; padding:12px 14px; pointer-events:none; opacity:0; transition:opacity .12s; min-width:540px; }
+  .trend-tooltip.show { opacity:1; }
+  .trend-tooltip-title { font-size:12px; font-weight:600; color:#1a1d23; margin-bottom:6px; }
+  .trend-tooltip svg { display:block; }
+  .trend-tooltip-legend { display:flex; justify-content:space-between; font-size:10px; color:#8892a4; margin-top:4px; }
+  .spu-img-hover { cursor:zoom-in; }
+  .spu-img-hover:hover { opacity:.8; }
+
+  .replenish-card { display:flex; align-items:center; gap:10px; border:1px solid #e2e5eb; padding:8px 10px; margin-bottom:6px; cursor:pointer; background:#fff; }
+  .replenish-card:hover { border-color:#8892a4; }
+  .replenish-card.urgent { border-left:3px solid #cc3333; }
+  .replenish-card.warning { border-left:3px solid #d97706; }
+  .replenish-card.advise { border-left:3px solid #2d8659; }
+  .replenish-card.observe { border-left:3px solid #8892a4; }
+  .replenish-img { width:96px; height:96px; object-fit:cover; flex-shrink:0; border:1px solid #e2e5eb; }
+  .replenish-info { flex:1; min-width:0; }
+  .replenish-mc { font-size:11px; font-weight:600; color:#1a1d23; font-family:SFMono-Regular,Consolas,monospace; }
+  .replenish-nm { font-size:10px; color:#6b7280; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .replenish-stats { display:flex; gap:8px; margin-top:2px; font-size:10px; color:#8892a4; }
+  .replenish-stats span { white-space:nowrap; }
+  .replenish-rhs { text-align:right; flex-shrink:0; }
+  .replenish-qty { font-size:15px; font-weight:700; }
+  .replenish-qty.urgent { color:#cc3333; }
+  .replenish-qty.warning { color:#d97706; }
+  .replenish-qty.advise { color:#2d8659; }
+  .replenish-qty.observe { color:#8892a4; }
+  .replenish-days { font-size:10px; color:#8892a4; margin-top:1px; }
+  .priority-badge { display:inline-block; font-size:9px; padding:1px 6px; font-weight:500; }
+  .priority-badge.urgent { border:1px solid #fca5a5; color:#cc3333; }
+  .priority-badge.warning { border:1px solid #fde68a; color:#d97706; }
+  .priority-badge.advise { border:1px solid #bbf7d0; color:#2d8659; }
+  .priority-badge.observe { border:1px solid #d0d4dd; color:#8892a4; }
+  .replenish-sub { font-size:10px; color:#8892a4; margin-top:2px; }
+
+  .calc-overlay { position:fixed; z-index:10000; inset:0; background:rgba(26,29,35,.55); display:none; align-items:center; justify-content:center; }
+  .calc-overlay.show { display:flex; }
+  .calc-modal { background:#fff; border:1px solid #d0d4dd; padding:26px; width:1060px; max-width:96vw; max-height:92vh; overflow-y:auto; }
+  .calc-modal h3 { margin:0 0 2px; font-size:18px; font-weight:600; color:#1a1d23; }
+  .calc-modal .sub { font-size:13px; color:#8892a4; margin-bottom:14px; }
+  .calc-close { float:right; background:none; border:none; font-size:22px; cursor:pointer; color:#8892a4; padding:0 4px; line-height:1; }
+  .calc-close:hover { color:#1a1d23; }
+  .calc-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
+  .calc-field { background:#f8f9fb; padding:8px 10px; border:1px solid #e8eaf0; }
+  .calc-field label { font-size:12px; color:#8892a4; display:block; margin-bottom:2px; }
+  .calc-field input[type=range] { width:100%; margin:3px 0; accent-color:#4455cc; }
+  .calc-val { display:flex; justify-content:space-between; font-size:14px; color:#1a1d23; }
+  .calc-val span:last-child { color:#8892a4; font-size:12px; }
+  .calc-metrics { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  .calc-metric { background:#f8f9fb; padding:10px; text-align:center; border:1px solid #e8eaf0; }
+  .calc-metric .lbl { font-size:12px; color:#8892a4; }
+  .calc-metric .val { font-size:17px; font-weight:600; color:#1a1d23; margin-top:3px; }
+  .calc-params { border-top:1px solid #e2e5eb; padding-top:10px; margin-bottom:10px; display:flex; gap:14px; flex-wrap:wrap; }
+  .calc-params label { font-size:13px; color:#6b7280; display:flex; align-items:center; gap:5px; }
+  .calc-params select { font-size:13px; padding:3px 6px; border:1px solid #e2e5eb; }
+  .calc-result { padding:10px 14px; font-size:13px; line-height:1.6; border:1px solid; }
+  .calc-result.urgent { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+  .calc-result.warning { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+  .calc-result.advise { background:#f0fdf4; border-color:#bbf7d0; color:#166534; }
+  .alloc-bar { display:flex; align-items:center; gap:8px; background:#f8f9fb; padding:8px 12px; margin-bottom:8px; border:1px solid #e8eaf0; flex-wrap:wrap; }
+  .alloc-bar label { font-size:13px; color:#6b7280; white-space:nowrap; }
+  .alloc-bar input[type=number] { width:72px; padding:3px 5px; border:1px solid #e2e5eb; font-size:14px; text-align:center; }
+  .alloc-bar select { padding:3px 5px; border:1px solid #e2e5eb; font-size:13px; }
+  .btn-alloc { padding:4px 12px; border:none; font-size:13px; font-weight:500; cursor:pointer; background:#4455cc; color:#fff; }
+  .btn-alloc:hover { background:#3344bb; }
+  .alloc-status { font-size:12px; color:#8892a4; }
+  .sku-detail-table { font-size:12px; width:100%; border-collapse:collapse; border:1px solid #e2e5eb; }
+  .sku-detail-table th { background:#f1f3f6; color:#4a5568; font-weight:500; font-size:11px; padding:5px 4px; text-align:center; border-bottom:1px solid #d0d4dd; }
+  .sku-detail-table td { padding:4px 4px; border-bottom:1px solid #e8eaf0; text-align:center; white-space:nowrap; font-size:11px; }
+  .sku-detail-table input[type=number] { width:46px; padding:2px; border:0.5px solid #d0d4dd; font-size:11px; text-align:center; background:#fff; }
+  .sku-detail-table input[type=number]:focus { outline:none; border-color:#4455cc; }
+
+  /* SKU明细表紧凑样式（覆盖定义） */
+  .sku-detail-table td, .sku-detail-table th { padding:5px 5px; border-bottom:1px solid #eee; text-align:center; white-space:nowrap; }
+  .sku-detail-table th { background:#f5f5f5; color:#555; font-weight:600; position:sticky; top:0; }
+  .sku-detail-table input[type=number] { width:54px; padding:2px 3px; border:0.5px solid #ddd; border-radius:3px; font-size:12px; text-align:center; }
+
+  /* SPU标记功能 */
+  .tag-filter { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  .tag-filter-btn { font-size:11px; padding:3px 10px; border:1px solid #d0d4dd; border-radius:12px; background:#fff; cursor:pointer; color:#6b7280; transition:all .12s; }
+  .tag-filter-btn:hover { border-color:#8892a4; }
+  .tag-filter-btn.active { background:#4455cc; color:#fff; border-color:#4455cc; }
+  .spu-tag { display:inline-flex; align-items:center; gap:3px; font-size:10px; padding:1px 6px; border-radius:3px; font-weight:500; cursor:pointer; border:1px solid; transition:all .12s; position:relative; }
+  .spu-tag.ordered { color:#166534; border-color:#86efac; background:#f0fdf4; }
+  .spu-tag.pending { color:#92400e; border-color:#fcd34d; background:#fffbeb; }
+  .spu-tag.skip { color:#6b7280; border-color:#d0d4dd; background:#f9fafb; text-decoration:line-through; }
+  .spu-tag.none { color:#8892a4; border-color:#e2e5eb; background:#fff; }
+  .spu-tag-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+  .spu-tag-dot.g { background:#22c55e; }
+  .spu-tag-dot.y { background:#f59e0b; }
+  .spu-tag-dot.gy { background:#9ca3af; }
+  .spu-tag-dot.n { background:#d0d4dd; }
+  .tag-menu { display:none; position:absolute; top:100%; left:0; z-index:999; background:#fff; border:1px solid #d0d4dd; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.1); min-width:100px; white-space:nowrap; }
+  .tag-menu.open { display:block; }
+  .tag-menu-item { padding:5px 10px; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:5px; color:#333; }
+  .tag-menu-item:hover { background:#f1f3f6; }
+  .tag-menu-item:first-child { border-radius:6px 6px 0 0; }
+  .tag-menu-item:last-child { border-radius:0 0 6px 6px; }
+</style>
+</head>
+<body>
+<h1>SEGI 缺货SKU对比</h1>
+<div class="meta">数据来源：快麦ERP + 全店商品资料</div>
+
+<div class="controls">
+  <span id="dateControls">
+  <label>基准日期：</label>
+  <select id="dateA"><option value="2026-06-04">2026-06-04</option><option value="2026-06-05">2026-06-05</option><option value="2026-06-06">2026-06-06</option><option value="2026-06-08">2026-06-08</option><option value="2026-06-09">2026-06-09</option><option value="2026-06-10">2026-06-10</option><option value="2026-06-11">2026-06-11</option><option value="2026-06-12">2026-06-12</option><option value="2026-06-15">2026-06-15</option><option value="2026-06-16">2026-06-16</option><option value="2026-06-17">2026-06-17</option><option value="2026-06-18">2026-06-18</option><option value="2026-06-22" selected>2026-06-22</option></select>
+  <label style="margin-left:10px;">对比日期：</label>
+  <select id="dateB"><option value="2026-06-04">2026-06-04</option><option value="2026-06-05">2026-06-05</option><option value="2026-06-06">2026-06-06</option><option value="2026-06-08">2026-06-08</option><option value="2026-06-09">2026-06-09</option><option value="2026-06-10">2026-06-10</option><option value="2026-06-11">2026-06-11</option><option value="2026-06-12">2026-06-12</option><option value="2026-06-15">2026-06-15</option><option value="2026-06-16">2026-06-16</option><option value="2026-06-17">2026-06-17</option><option value="2026-06-18" selected>2026-06-18</option><option value="2026-06-22">2026-06-22</option></select>
+  <button class="btn btn-primary" onclick="refreshView()">对比</button>
+  <span id="dateInfo" style="font-size:13px;color:#888;margin-left:10px;"></span>
+  </span>
+  <div style="margin-left:auto;" class="view-toggle">
+    <button class="view-btn active" id="btnSkuView" onclick="toggleView('sku')">按SKU显示</button>
+    <button class="view-btn" id="btnSpuView" onclick="toggleView('spu')">按SPU显示</button>
+    <button class="view-btn" id="btnReplenish" onclick="toggleView('replenish')">补货建议</button>
+  </div>
+</div>
+
+<div class="summary" id="summaryCards"></div>
+
+<div class="section" id="newStockoutWrap">
+  <h3 style="margin:0 0 12px 0;font-size:14px;">对比新增缺货款式</h3>
+  <div id="newStockoutContent">加载中...</div>
+</div>
+
+<div id="tableWrap"></div>
+
+<!-- 补货建议区域 -->
+<div id="replenishWrap" style="display:none;">
+  <div class="controls" style="margin-bottom:14px;">
+    <label>默认参数：</label>
+    <span style="font-size:13px;color:#555;">补货周期 <strong>15天</strong>，安全库存 <strong>10天</strong></span>
+    <span style="font-size:12px;color:#999;margin-left:auto;">点击款式可调整参数查看详情</span>
+  </div>
+  <div id="replenishCards" style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;"></div>
+  <div class="tag-filter" id="tagFilter"></div>
+  <div id="replenishContent"></div>
+</div>
+
+<!-- 补货计算器模态框 -->
+<div class="calc-overlay" id="calcOverlay">
+  <div class="calc-modal">
+    <button class="calc-close" onclick="closeCalculator()">&times;</button>
+    <h3 id="calcTitle">补货计算器</h3>
+    <div class="sub" id="calcSub"></div>
+    <div class="calc-grid">
+      <div class="calc-field">
+        <label>可用库存 <span style="color:#d32f2f;">(可负数)</span></label>
+        <input type="range" id="cAvail" min="-500" max="1000" value="80">
+        <div class="calc-val"><span id="cAvailVal">80</span><span>件</span></div>
+      </div>
+      <div class="calc-field">
+        <label>采购在途</label>
+        <input type="range" id="cTransit" min="0" max="500" value="0">
+        <div class="calc-val"><span id="cTransitVal">0</span><span>件</span></div>
+      </div>
+      <div class="calc-field">
+        <label>15天销量</label>
+        <input type="range" id="cSales15" min="0" max="2000" step="5" value="120">
+        <div class="calc-val"><span id="cSales15Val">120</span><span>件</span></div>
+      </div>
+      <div class="calc-field">
+        <label>7天销量</label>
+        <input type="range" id="cSales7" min="0" max="2000" step="5" value="50">
+        <div class="calc-val"><span id="cSales7Val">50</span><span>件</span></div>
+      </div>
+      <div class="calc-field">
+        <label>15天退货</label>
+        <input type="range" id="cReturns15" min="0" max="500" step="5" value="20">
+        <div class="calc-val"><span id="cReturns15Val">20</span><span>件</span></div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+      <div class="calc-metric" style="border:1px solid #e0e0e0;">
+        <div class="lbl">基于7天销量</div>
+        <div style="margin-top:6px;">
+          <div style="font-size:11px;color:#888;">日均销</div>
+          <div class="val" id="cDaily7" style="font-size:16px;">7.1</div>
+          <div style="font-size:11px;color:#888;margin-top:4px;">建议下单</div>
+          <div class="val" id="cOrder7" style="font-size:16px;color:#e65100;">0</div>
+        </div>
+      </div>
+      <div class="calc-metric" style="border:1px solid #e0e0e0;">
+        <div class="lbl">基于15天销量</div>
+        <div style="margin-top:6px;">
+          <div style="font-size:11px;color:#888;">日均净销</div>
+          <div class="val" id="cDaily15" style="font-size:16px;">6.7</div>
+          <div style="font-size:11px;color:#888;margin-top:4px;">建议下单</div>
+          <div class="val" id="cOrder15" style="font-size:16px;color:#d32f2f;">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="calc-params">
+      <label>补货周期 <select id="cLeadTime"><option value="3">3天（加急）</option><option value="7">7天</option><option value="15" selected>15天（默认）</option><option value="21">21天</option><option value="30">30天</option></select></label>
+      <label>安全库存 <select id="cSafety"><option value="3">3天</option><option value="7">7天</option><option value="10" selected>10天（默认）</option><option value="14">14天</option><option value="21">21天</option></select></label>
+    </div>
+    <div class="calc-result" id="calcResult">调整参数实时计算</div>
+    <div style="margin-top:12px;border-top:1px solid #eee;padding-top:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong style="font-size:14px;color:#333;">SKU明细</strong>
+        <button style="padding:3px 10px;background:#64748b;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;" onclick="resetCalculator()">重置</button>
+      </div>
+      <div class="alloc-bar">
+        <label>本次总补货量</label>
+        <input type="number" id="totalAlloc" value="0" min="0">
+        <label>分配依据</label>
+        <select id="allocBasis">
+          <option value="max">取大值(7天/15天)</option>
+          <option value="7">按7天建议</option>
+          <option value="15">按15天建议</option>
+          <option value="equal">平均分配</option>
+        </select>
+        <button class="btn-alloc" onclick="doAlloc()">分配</button>
+        <span class="alloc-status" id="allocStatus"></span>
+      </div>
+      <div id="skuTableWrap" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 欠货趋势图 tooltip -->
+<div class="trend-tooltip" id="trendTooltip">
+  <div class="trend-tooltip-title" id="trendTitle"></div>
+  <div id="trendChartWrap"></div>
+  <div class="trend-tooltip-legend"><span>← 旧</span><span>新 →</span></div>
+</div>
+
+<script>
+var ALL_DATA = [{"s": "26SS1PF7-M", "m": "26SS1PF7", "pid": "1030829034834", "at": "深咖啡;165/70A（M）", "nm": "SEGI莱赛尔天丝亚麻一衣多穿抹胸披风假两件上衣【新品限时85折】", "img": "sku_images_v2/ID_FD93608F430F425D858390C84C0A6117.webp", "h": {"2026-06-04": {"a": -11, "l": 11, "7": 85, "15": 144}, "2026-06-05": {"a": -10, "l": 10, "7": 59, "15": 147}, "2026-06-06": {"a": -11, "l": 11, "7": 48, "15": 148}, "2026-06-08": {"a": -3, "l": 3, "7": 64, "15": 154}, "2026-06-09": {"a": -10, "l": 10, "7": 59, "15": 151}, "2026-06-10": {"a": -9, "l": 9, "7": 61, "15": 158}, "2026-06-11": {"a": -6, "l": 6, "7": 51, "15": 164}, "2026-06-12": {"a": -5, "l": 5, "7": 48, "15": 139}, "2026-06-15": {"a": 12, "l": 3, "7": 41, "15": 107}, "2026-06-16": {"a": -1, "l": 7, "7": 55, "15": 122}, "2026-06-17": {"a": -11, "l": 6, "7": 53, "15": 120}, "2026-06-18": {"a": -19, "l": 14, "7": 48, "15": 118}, "2026-06-22": {"a": -29, "l": 24, "7": 55, "15": 102}}}, {"s": "26SS1XJ40-S", "m": "26SS1XJ40", "pid": "1048350896926", "at": "蓝色;160/90A（S）", "nm": "SEGI 细闪肌理感立体剪裁斜肩串珠抽褶上衣夏季新款女独特设计感", "img": "sku_images_v2/ID_D0CEC24240FC4072956BB91C1104605F.webp", "h": {"2026-06-04": {"a": -9, "l": 9, "7": 2, "15": 2}, "2026-06-05": {"a": -9, "l": 9, "7": 2, "15": 2}, "2026-06-06": {"a": -9, "l": 9, "7": 0, "15": 2}, "2026-06-08": {"a": -9, "l": 9, "7": 0, "15": 2}, "2026-06-09": {"a": -7, "l": 7, "7": 0, "15": 2}, "2026-06-10": {"a": -7, "l": 7, "7": 0, "15": 2}, "2026-06-11": {"a": -7, "l": 7, "7": 0, "15": 2}, "2026-06-12": {"a": -8, "l": 8, "7": 0, "15": 2}, "2026-06-15": {"a": -8, "l": 8, "7": 0, "15": 0}, "2026-06-16": {"a": -9, "l": 9, "7": 0, "15": 0}, "2026-06-17": {"a": -8, "l": 8, "7": 0, "15": 0}, "2026-06-18": {"a": -8, "l": 8, "7": 0, "15": 0}, "2026-06-22": {"a": -14, "l": 14, "7": 0, "15": 0}}}, {"s": "26SS1XJ40-M", "m": "26SS1XJ40", "pid": "1048350896926", "at": "蓝色;165/94A（M）", "nm": "SEGI 细闪肌理感立体剪裁斜肩串珠抽褶上衣夏季新款女独特设计感", "img": "sku_images_v2/ID_D0CEC24240FC4072956BB91C1104605F.webp", "h": {"2026-06-04": {"a": -4, "l": 4, "7": 1, "15": 1}, "2026-06-05": {"a": -4, "l": 4, "7": 1, "15": 1}, "2026-06-06": {"a": -4, "l": 4, "7": 0, "15": 1}, "2026-06-08": {"a": -4, "l": 4, "7": 0, "15": 1}, "2026-06-09": {"a": -3, "l": 3, "7": 0, "15": 1}, "2026-06-10": {"a": -4, "l": 4, "7": 0, "15": 1}, "2026-06-11": {"a": -5, "l": 5, "7": 0, "15": 1}, "2026-06-12": {"a": -5, "l": 5, "7": 0, "15": 1}, "2026-06-15": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-16": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-17": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-18": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-22": {"a": -12, "l": 12, "7": 0, "15": 0}}}, {"s": "26SS2PF08-P-S", "m": "26SS2PF08", "pid": "1055412244093", "at": "紫色;160/70A（S）", "nm": "SEGI 冰感醋酸丝绒拼接不对称网纱飘逸上衣【新品限时8折】", "img": "sku_images_v2/ID_2312055EDCE140478015215101FD4CDD.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-09": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-10": {"a": -7, "l": 7, "7": 0, "15": 0}, "2026-06-11": {"a": -9, "l": 9, "7": 0, "15": 0}, "2026-06-12": {"a": -12, "l": 12, "7": 0, "15": 0}, "2026-06-15": {"a": -14, "l": 14, "7": 0, "15": 0}, "2026-06-16": {"a": -17, "l": 17, "7": 0, "15": 0}, "2026-06-17": {"a": -17, "l": 17, "7": 0, "15": 0}, "2026-06-18": {"a": -21, "l": 21, "7": 0, "15": 0}, "2026-06-22": {"a": -12, "l": 12, "7": 10, "15": 10}}}, {"s": "26SS2PD03-P-S", "m": "26SS2PD03", "pid": "1052753751031", "at": "粉桔色;160/104A（S）", "nm": "SEGI 定制渲染可拆卸围脖荡褶上衣【新品限时8折】", "img": "sku_images_v2/ID_3683FCA4EE9547CB8B3DA80DD5688B27.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-09": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-10": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-11": {"a": -6, "l": 6, "7": 0, "15": 0}, "2026-06-12": {"a": -7, "l": 7, "7": 0, "15": 0}, "2026-06-15": {"a": -8, "l": 8, "7": 0, "15": 0}, "2026-06-16": {"a": -8, "l": 8, "7": 0, "15": 0}, "2026-06-17": {"a": -8, "l": 8, "7": 0, "15": 0}, "2026-06-18": {"a": -9, "l": 9, "7": 0, "15": 0}, "2026-06-22": {"a": -9, "l": 9, "7": 0, "15": 0}}}, {"s": "26SS2PF08-P-M", "m": "26SS2PF08", "pid": "1055412244093", "at": "紫色;165/74A（M）", "nm": "SEGI 冰感醋酸丝绒拼接不对称网纱飘逸上衣【新品限时8折】", "img": "sku_images_v2/ID_2312055EDCE140478015215101FD4CDD.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": -6, "l": 6, "7": 0, "15": 0}, "2026-06-09": {"a": -9, "l": 9, "7": 2, "15": 2}, "2026-06-10": {"a": -10, "l": 10, "7": 2, "15": 2}, "2026-06-11": {"a": -12, "l": 12, "7": 2, "15": 2}, "2026-06-12": {"a": -12, "l": 12, "7": 2, "15": 2}, "2026-06-15": {"a": -13, "l": 13, "7": 0, "15": 1}, "2026-06-16": {"a": -14, "l": 14, "7": 0, "15": 1}, "2026-06-17": {"a": -15, "l": 15, "7": 0, "15": 1}, "2026-06-18": {"a": -17, "l": 17, "7": 0, "15": 1}, "2026-06-22": {"a": -7, "l": 7, "7": 9, "15": 10}}}, {"s": "26SS2PF08-P-L", "m": "26SS2PF08", "pid": "1055412244093", "at": "紫色;170/78A（L）", "nm": "SEGI 冰感醋酸丝绒拼接不对称网纱飘逸上衣【新品限时8折】", "img": "sku_images_v2/ID_2312055EDCE140478015215101FD4CDD.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": -6, "l": 6, "7": 0, "15": 0}, "2026-06-10": {"a": -7, "l": 7, "7": 0, "15": 0}, "2026-06-11": {"a": -8, "l": 8, "7": 0, "15": 0}, "2026-06-12": {"a": -8, "l": 8, "7": 0, "15": 0}, "2026-06-15": {"a": -9, "l": 9, "7": 0, "15": 0}, "2026-06-16": {"a": -11, "l": 11, "7": 0, "15": 0}, "2026-06-17": {"a": -13, "l": 13, "7": 0, "15": 0}, "2026-06-18": {"a": -13, "l": 13, "7": 0, "15": 0}, "2026-06-22": {"a": -6, "l": 6, "7": 9, "15": 9}}}, {"s": "26SS2MX32-L-S", "m": "26SS2MX32", "pid": "1056941590285", "at": "淡水蓝;S", "nm": "SEGI 亚麻莱赛尔薄丝皱飘带亚麻假两件抹胸上衣", "img": "sku_images_v2/ID_D73EF665387843DB8341C19964BDCEBD.webp", "h": {"2026-06-22": {"a": -5, "l": 5, "7": 0, "15": 0}}}, {"s": "26SS2PD03-P-M", "m": "26SS2PD03", "pid": "1052753751031", "at": "粉桔色;165/108A（M）", "nm": "SEGI 定制渲染可拆卸围脖荡褶上衣【新品限时8折】", "img": "sku_images_v2/ID_3683FCA4EE9547CB8B3DA80DD5688B27.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-09": {"a": -5, "l": 5, "7": 1, "15": 1}, "2026-06-10": {"a": -6, "l": 6, "7": 1, "15": 1}, "2026-06-11": {"a": -6, "l": 6, "7": 1, "15": 1}, "2026-06-12": {"a": -6, "l": 6, "7": 1, "15": 1}, "2026-06-15": {"a": -7, "l": 7, "7": 0, "15": 1}, "2026-06-16": {"a": -7, "l": 7, "7": 0, "15": 1}, "2026-06-17": {"a": -8, "l": 8, "7": 0, "15": 1}, "2026-06-18": {"a": -7, "l": 7, "7": 0, "15": 1}, "2026-06-22": {"a": -5, "l": 5, "7": 0, "15": 1}}}, {"s": "25SSPT3NT001-S", "m": "25SSPT3NT001", "pid": "913863171800", "at": "米黄;160/68A（S）", "nm": "SEGI 原创设计新款天丝亚麻蝴蝶提花镂空针织挂脖开衫背心吊带女", "img": "sku_images_v2/ID_2C7E5708CD304743ACD0BE00E386CEE1.webp", "h": {"2026-06-04": {"a": 18, "l": 0, "7": 5, "15": 12}, "2026-06-05": {"a": 17, "l": 1, "7": 7, "15": 14}, "2026-06-06": {"a": 12, "l": 3, "7": 8, "15": 17}, "2026-06-08": {"a": 8, "l": 1, "7": 13, "15": 21}, "2026-06-09": {"a": 7, "l": 0, "7": 14, "15": 21}, "2026-06-10": {"a": 7, "l": 0, "7": 16, "15": 22}, "2026-06-11": {"a": 6, "l": 1, "7": 17, "15": 23}, "2026-06-12": {"a": 6, "l": 1, "7": 17, "15": 24}, "2026-06-15": {"a": 0, "l": 5, "7": 12, "15": 25}, "2026-06-16": {"a": 3, "l": 1, "7": 14, "15": 30}, "2026-06-17": {"a": 2, "l": 0, "7": 14, "15": 30}, "2026-06-18": {"a": -2, "l": 3, "7": 14, "15": 31}, "2026-06-22": {"a": -5, "l": 5, "7": 14, "15": 28}}}, {"s": "26SS1XJ40-L", "m": "26SS1XJ40", "pid": "1048350896926", "at": "蓝色;170/98A（L）", "nm": "SEGI 细闪肌理感立体剪裁斜肩串珠抽褶上衣夏季新款女独特设计感", "img": "sku_images_v2/ID_D0CEC24240FC4072956BB91C1104605F.webp", "h": {"2026-06-04": {"a": -6, "l": 6, "7": 0, "15": 0}, "2026-06-05": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-06": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-08": {"a": -7, "l": 7, "7": 0, "15": 0}, "2026-06-09": {"a": -6, "l": 6, "7": 0, "15": 0}, "2026-06-10": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-11": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-12": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-15": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-16": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-17": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-18": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-22": {"a": -4, "l": 4, "7": 0, "15": 0}}}, {"s": "26SS2BX09-K-S", "m": "26SS2BX09", "pid": "1054496005670", "at": "奶茶棕;160/78A（S）", "nm": "SEGI 青果领捏褶压褶塔克线V领背心【新品限时8折】", "img": "sku_images_v2/ID_DD371956A3664A5A8F325179FED19CB0.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-10": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-15": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-16": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-17": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-18": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-22": {"a": -4, "l": 4, "7": 0, "15": 0}}}, {"s": "26SS2DQ14-Y-M", "m": "26SS2DQ14", "pid": "1053527398538", "at": "白色;165/74A（M）", "nm": "醋酸缎面隐形拉链调节开叉包臀裙裤", "img": "sku_images_v2/ID_30B4C6C68B2446B1B00712BD2544BFD5.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-10": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-15": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-16": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-17": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-18": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-22": {"a": -4, "l": 4, "7": 0, "15": 0}}}, {"s": "26SS2ZS22-Z-F", "m": "26SS2ZS22", "pid": "1058879344898", "at": "紫色;F", "nm": "SEGI 微透竹节荡领蝙蝠袖罩衫", "img": "sku_images_v2/ID_5FB1D0CFEC114779B00C300DF3F14B21.webp", "h": {"2026-06-22": {"a": -4, "l": 4, "7": 0, "15": 0}}}, {"s": "26SS1PF7-S", "m": "26SS1PF7", "pid": "1030829034834", "at": "深咖啡;160/66A（S）", "nm": "SEGI莱赛尔天丝亚麻一衣多穿抹胸披风假两件上衣【新品限时85折】", "img": "sku_images_v2/ID_FD93608F430F425D858390C84C0A6117.webp", "h": {"2026-06-04": {"a": -17, "l": 17, "7": 68, "15": 126}, "2026-06-05": {"a": -22, "l": 22, "7": 41, "15": 126}, "2026-06-06": {"a": -17, "l": 17, "7": 45, "15": 134}, "2026-06-08": {"a": -26, "l": 26, "7": 37, "15": 133}, "2026-06-09": {"a": -33, "l": 33, "7": 33, "15": 130}, "2026-06-10": {"a": -32, "l": 32, "7": 37, "15": 137}, "2026-06-11": {"a": -29, "l": 29, "7": 45, "15": 146}, "2026-06-12": {"a": -13, "l": 13, "7": 62, "15": 132}, "2026-06-15": {"a": 46, "l": 7, "7": 67, "15": 110}, "2026-06-16": {"a": 26, "l": 10, "7": 86, "15": 126}, "2026-06-17": {"a": -1, "l": 9, "7": 91, "15": 133}, "2026-06-18": {"a": -6, "l": 6, "7": 93, "15": 143}, "2026-06-22": {"a": -4, "l": 4, "7": 85, "15": 154}}}, {"s": "26SS2MX23-R-S", "m": "26SS2MX23", "pid": "1057950149861", "at": "白色;S", "nm": "SEGI 皱感羊毛莱赛尔双层紧身金属环抹胸上衣", "img": "sku_images_v2/ID_5B993AF6DF4B4E23A633BEE227806C5A.webp", "h": {"2026-06-22": {"a": -3, "l": 3, "7": 0, "15": 0}}}, {"s": "26SS2DQ38-S", "m": "26SS2DQ38", "pid": "1056189471183", "at": "彩色;S", "nm": "SEGI 定制多彩渲染花朵下摆短裙", "img": "sku_images_v2/ID_09690257DE5B44CDBCFBCAE35A02CCC3.webp", "h": {"2026-06-22": {"a": -3, "l": 3, "7": 0, "15": 0}}}, {"s": "26SS2DQ38-M", "m": "26SS2DQ38", "pid": "1056189471183", "at": "彩色;M", "nm": "SEGI 定制多彩渲染花朵下摆短裙", "img": "sku_images_v2/ID_09690257DE5B44CDBCFBCAE35A02CCC3.webp", "h": {"2026-06-22": {"a": -3, "l": 3, "7": 0, "15": 0}}}, {"s": "26SS2MX32-L-M", "m": "26SS2MX32", "pid": "1056941590285", "at": "淡水蓝;M", "nm": "SEGI 亚麻莱赛尔薄丝皱飘带亚麻假两件抹胸上衣", "img": "sku_images_v2/ID_D73EF665387843DB8341C19964BDCEBD.webp", "h": {"2026-06-22": {"a": -3, "l": 3, "7": 0, "15": 0}}}, {"s": "26SS2MX32-H-S", "m": "26SS2MX32", "pid": "1056941590285", "at": "金丝灰;S", "nm": "SEGI 亚麻莱赛尔薄丝皱飘带亚麻假两件抹胸上衣", "img": "sku_images_v2/ID_D73EF665387843DB8341C19964BDCEBD.webp", "h": {"2026-06-22": {"a": -3, "l": 3, "7": 0, "15": 0}}}, {"s": "26SS2DQ14-Y-S", "m": "26SS2DQ14", "pid": "1053527398538", "at": "白色;160/70A（S）", "nm": "醋酸缎面隐形拉链调节开叉包臀裙裤", "img": "sku_images_v2/ID_30B4C6C68B2446B1B00712BD2544BFD5.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-10": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-11": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-12": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-15": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-16": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-17": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-18": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-22": {"a": -3, "l": 3, "7": 0, "15": 0}}}, {"s": "26SS2DQ14-Y-L", "m": "26SS2DQ14", "pid": "1053527398538", "at": "白色;170/78A（L）", "nm": "醋酸缎面隐形拉链调节开叉包臀裙裤", "img": "sku_images_v2/ID_30B4C6C68B2446B1B00712BD2544BFD5.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-10": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-15": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-16": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-17": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-18": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-22": {"a": -3, "l": 3, "7": 0, "15": 0}}}, {"s": "26SS1KZ48-L", "m": "26SS1KZ48", "pid": "1045785263042", "at": "深咖色;170/76A（L）", "nm": "SEGI亚麻胶质感斜门襟分割纽扣休闲长裤女夏季新款设计感小众裤子", "img": "sku_images_v2/ID_9891E7E7DA9E4E5FB510828E2E592C98.webp", "h": {"2026-06-04": {"a": -6, "l": 6, "7": 5, "15": 7}, "2026-06-05": {"a": -6, "l": 6, "7": 5, "15": 7}, "2026-06-06": {"a": -7, "l": 7, "7": 2, "15": 7}, "2026-06-08": {"a": -10, "l": 10, "7": 1, "15": 7}, "2026-06-09": {"a": -10, "l": 10, "7": 1, "15": 7}, "2026-06-10": {"a": -10, "l": 10, "7": 1, "15": 7}, "2026-06-11": {"a": -9, "l": 9, "7": 1, "15": 8}, "2026-06-12": {"a": -10, "l": 10, "7": 1, "15": 6}, "2026-06-15": {"a": -2, "l": 2, "7": 15, "15": 16}, "2026-06-16": {"a": -6, "l": 6, "7": 15, "15": 16}, "2026-06-17": {"a": -6, "l": 6, "7": 15, "15": 16}, "2026-06-18": {"a": -4, "l": 4, "7": 18, "15": 20}, "2026-06-22": {"a": -3, "l": 3, "7": 8, "15": 23}}}, {"s": "26SS2PD03-P-L", "m": "26SS2PD03", "pid": "1052753751031", "at": "粉桔色;170/114A（L）", "nm": "SEGI 定制渲染可拆卸围脖荡褶上衣【新品限时8折】", "img": "sku_images_v2/ID_3683FCA4EE9547CB8B3DA80DD5688B27.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-09": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-10": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-11": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-12": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-15": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-16": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-17": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-18": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-22": {"a": -3, "l": 3, "7": 0, "15": 0}}}, {"s": "26SS2GB29-M", "m": "26SS2GB29", "pid": "1057925053781", "at": "白色;M", "nm": "SEGI 细闪一片式百褶双层贝母扣挂脖背心", "img": "sku_images_v2/ID_210D6BDD977240D4A29D6AABF40E7E26.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2XJ33-S", "m": "26SS2XJ33", "pid": "1056952638604", "at": "白色;S", "nm": "SEGI 醋酸针织斜肩捏褶不对称荡褶上衣", "img": "sku_images_v2/ID_87C94B93B6F24FD68F3DFC99A9247495.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2XJ24-B-S", "m": "26SS2XJ24", "pid": "1058871856463", "at": "白色;S", "nm": "SEGI 匹马棉黑白撞色裹挟斜肩吊带", "img": "sku_images_v2/ID_777018C4C3E140FB8174940E23769852.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2XJ24-B-L", "m": "26SS2XJ24", "pid": "1058871856463", "at": "白色;L", "nm": "SEGI 匹马棉黑白撞色裹挟斜肩吊带", "img": "sku_images_v2/ID_777018C4C3E140FB8174940E23769852.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2MX23-Z-S", "m": "26SS2MX23", "pid": "1057950149861", "at": "紫色;S", "nm": "SEGI 皱感羊毛莱赛尔双层紧身金属环抹胸上衣", "img": "sku_images_v2/ID_5B993AF6DF4B4E23A633BEE227806C5A.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2MX23-B-M", "m": "26SS2MX23", "pid": "1057950149861", "at": "黑色;M", "nm": "SEGI 皱感羊毛莱赛尔双层紧身金属环抹胸上衣", "img": "sku_images_v2/ID_5B993AF6DF4B4E23A633BEE227806C5A.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2MX32-H-M", "m": "26SS2MX32", "pid": "1056941590285", "at": "金丝灰;M", "nm": "SEGI 亚麻莱赛尔薄丝皱飘带亚麻假两件抹胸上衣", "img": "sku_images_v2/ID_D73EF665387843DB8341C19964BDCEBD.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2MX32-H-L", "m": "26SS2MX32", "pid": "1056941590285", "at": "金丝灰;L", "nm": "SEGI 亚麻莱赛尔薄丝皱飘带亚麻假两件抹胸上衣", "img": "sku_images_v2/ID_D73EF665387843DB8341C19964BDCEBD.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2XJ02-Y-S", "m": "26SS2XJ02", "pid": "1054498541935", "at": "蓝色;160/90A（S）", "nm": "SEGI 斜肩波浪袖金属环抽褶绑带垂感飘带上衣【新品限时8折】", "img": "sku_images_v2/ID_B7ACC0A0572247C2A478764B3FEB86F7.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-10": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-15": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-16": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-17": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-18": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2XJ02-B-S", "m": "26SS2XJ02", "pid": "1054498541935", "at": "白色;160/90A（S）", "nm": "SEGI 斜肩波浪袖金属环抽褶绑带垂感飘带上衣【新品限时8折】", "img": "sku_images_v2/ID_B7ACC0A0572247C2A478764B3FEB86F7.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-09": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-10": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-15": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-16": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-17": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-18": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-22": {"a": -2, "l": 2, "7": 1, "15": 1}}}, {"s": "26SS2DQ37-M", "m": "26SS2DQ37", "pid": "1056970658590", "at": "斑马纹;165/78A（M）", "nm": "定制印花斑马图案短裙", "img": "sku_images_v2/ID_EB461C15319F49DF8A17EDED2572790D.webp", "h": {"2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-10": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 1, "15": 1}, "2026-06-15": {"a": -1, "l": 1, "7": 1, "15": 1}, "2026-06-16": {"a": -1, "l": 1, "7": 1, "15": 1}, "2026-06-17": {"a": -1, "l": 1, "7": 1, "15": 1}, "2026-06-18": {"a": -1, "l": 1, "7": 1, "15": 1}, "2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 1}}}, {"s": "26SS2ZS22-R-F", "m": "26SS2ZS22", "pid": "1058879344898", "at": "白色;F", "nm": "SEGI 微透竹节荡领蝙蝠袖罩衫", "img": "sku_images_v2/ID_5FB1D0CFEC114779B00C300DF3F14B21.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2BQ39-M", "m": "26SS2BQ39", "pid": "1056188163881", "at": "白色;M", "nm": "SEGI 重工激光镂空半裙", "img": "sku_images_v2/ID_5862CAD5180B4758A7E92ED92933ACA2.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2DC04-Z-S", "m": "26SS2DC04", "pid": "1052741019200", "at": "藏青色;S", "nm": "SEGI 醋酸抹胸多穿披风玉石抽褶两件套【新品限时8折】", "img": "sku_images_v2/ID_F0F331F2341D48A5B24C34E79E2B4A65.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-10": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-11": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-12": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-15": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-16": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-17": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-18": {"a": -6, "l": 6, "7": 0, "15": 0}, "2026-06-22": {"a": -2, "l": 2, "7": 6, "15": 6}}}, {"s": "26SS2DD21-S", "m": "26SS2DD21", "pid": "1056179187503", "at": "蓝色;S", "nm": "SEGI 压褶双层吊带围巾薄纱上衣", "img": "sku_images_v2/ID_7B6AD951AAF749419BDA43D793432A4A.webp", "h": {"2026-06-22": {"a": -2, "l": 2, "7": 0, "15": 0}}}, {"s": "26SS2GB29-S", "m": "26SS2GB29", "pid": "1057925053781", "at": "白色;S", "nm": "SEGI 细闪一片式百褶双层贝母扣挂脖背心", "img": "sku_images_v2/ID_210D6BDD977240D4A29D6AABF40E7E26.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2CS34-S", "m": "26SS2CS34", "pid": "1057933217932", "at": "白色;S", "nm": "SEGI 天丝绑带微透遮阳衬衫", "img": "sku_images_v2/ID_C7FC8D4E165141D6966F868091D11A60.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2CS34-L", "m": "26SS2CS34", "pid": "1057933217932", "at": "白色;L", "nm": "SEGI 天丝绑带微透遮阳衬衫", "img": "sku_images_v2/ID_C7FC8D4E165141D6966F868091D11A60.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2XJ24-B-M", "m": "26SS2XJ24", "pid": "1058871856463", "at": "白色;M", "nm": "SEGI 匹马棉黑白撞色裹挟斜肩吊带", "img": "sku_images_v2/ID_777018C4C3E140FB8174940E23769852.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2MX23-Z-M", "m": "26SS2MX23", "pid": "1057950149861", "at": "紫色;M", "nm": "SEGI 皱感羊毛莱赛尔双层紧身金属环抹胸上衣", "img": "sku_images_v2/ID_5B993AF6DF4B4E23A633BEE227806C5A.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2MX23-B-S", "m": "26SS2MX23", "pid": "1057950149861", "at": "黑色;S", "nm": "SEGI 皱感羊毛莱赛尔双层紧身金属环抹胸上衣", "img": "sku_images_v2/ID_5B993AF6DF4B4E23A633BEE227806C5A.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2KZ35-L", "m": "26SS2KZ35", "pid": "1056968030565", "at": "卡其色;170/76A（L）", "nm": "工字褶捏褶水洗垂感长裤", "img": "sku_images_v2/ID_59F6A8CB59564542A119A22C6116FFCF.webp", "h": {"2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-10": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-11": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-12": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-15": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-16": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-17": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-18": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS1MY49-S", "m": "26SS1MY49", "pid": "1046516942353", "at": "米白色;S", "nm": "SEGI 亚麻混纺镂空针织polo短袖女夏季新款休闲设计感慵懒上衣", "img": "sku_images_v2/ID_01D50A5F44A84D02A5B811A8B1FD32D8.webp", "h": {"2026-06-04": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-05": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-06": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 1, "15": 1}, "2026-06-09": {"a": 0, "l": 0, "7": 1, "15": 1}, "2026-06-10": {"a": 0, "l": 0, "7": 1, "15": 1}, "2026-06-11": {"a": 0, "l": 0, "7": 1, "15": 1}, "2026-06-12": {"a": 0, "l": 0, "7": 1, "15": 1}, "2026-06-15": {"a": 0, "l": 0, "7": 0, "15": 1}, "2026-06-16": {"a": 0, "l": 0, "7": 0, "15": 1}, "2026-06-17": {"a": -1, "l": 1, "7": 0, "15": 1}, "2026-06-18": {"a": -1, "l": 1, "7": 0, "15": 1}, "2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2DD12-O-M", "m": "26SS2DD12", "pid": "1053513418317", "at": "橙色;165/84A（M）", "nm": "SEGI 高支高密色织格纹吊带串珠上衣【新品限时8折】", "img": "sku_images_v2/ID_7B98325F2FD14C998CA81A3688F43BF9.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-09": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-10": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-11": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-12": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-15": {"a": -5, "l": 5, "7": 0, "15": 0}, "2026-06-16": {"a": -6, "l": 6, "7": 0, "15": 0}, "2026-06-17": {"a": -6, "l": 6, "7": 0, "15": 0}, "2026-06-18": {"a": -6, "l": 6, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 2, "15": 4}}}, {"s": "26SS2TOP30-S", "m": "26SS2TOP30", "pid": "1058854100583", "at": "白色;S", "nm": "SEGI 莱赛尔V领光泽感纽扣捏褶蝙蝠袖短袖上衣", "img": "sku_images_v2/ID_E4BD2D4F345F46E3AB45115854A10741.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2TOP30-M", "m": "26SS2TOP30", "pid": "1058854100583", "at": "白色;M", "nm": "SEGI 莱赛尔V领光泽感纽扣捏褶蝙蝠袖短袖上衣", "img": "sku_images_v2/ID_E4BD2D4F345F46E3AB45115854A10741.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2TOP30-L", "m": "26SS2TOP30", "pid": "1058854100583", "at": "白色;L", "nm": "SEGI 莱赛尔V领光泽感纽扣捏褶蝙蝠袖短袖上衣", "img": "sku_images_v2/ID_E4BD2D4F345F46E3AB45115854A10741.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS1KZ16-L", "m": "26SS1KZ16", "pid": "1030831158152", "at": "白色;170/76A（L）", "nm": "SEGI 天丝亚麻杂色双腰头捏褶垂感阔腿裤【新品限时85折】", "img": "sku_images_v2/ID_49DE094333EA40CCBF65B2C87CCDF216.webp", "h": {"2026-06-04": {"a": 3, "l": 0, "7": 1, "15": 7}, "2026-06-05": {"a": 3, "l": 0, "7": 1, "15": 5}, "2026-06-06": {"a": 2, "l": 1, "7": 1, "15": 4}, "2026-06-08": {"a": 1, "l": 2, "7": 1, "15": 3}, "2026-06-09": {"a": 2, "l": 0, "7": 2, "15": 4}, "2026-06-10": {"a": 1, "l": 0, "7": 3, "15": 5}, "2026-06-11": {"a": 1, "l": 0, "7": 3, "15": 5}, "2026-06-12": {"a": 1, "l": 0, "7": 4, "15": 5}, "2026-06-15": {"a": 0, "l": 0, "7": 3, "15": 5}, "2026-06-16": {"a": 0, "l": 0, "7": 2, "15": 4}, "2026-06-17": {"a": 2, "l": 0, "7": 1, "15": 4}, "2026-06-18": {"a": 2, "l": 0, "7": 1, "15": 4}, "2026-06-22": {"a": -1, "l": 1, "7": 1, "15": 5}}}, {"s": "26SS2BX09-K-L", "m": "26SS2BX09", "pid": "1054496005670", "at": "奶茶棕;170/86A（L）", "nm": "SEGI 青果领捏褶压褶塔克线V领背心【新品限时8折】", "img": "sku_images_v2/ID_DD371956A3664A5A8F325179FED19CB0.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-10": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-15": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-16": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-17": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-18": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2XJ02-H-S", "m": "26SS2XJ02", "pid": "1054498541935", "at": "黑色;160/90A（S）", "nm": "SEGI 斜肩波浪袖金属环抽褶绑带垂感飘带上衣【新品限时8折】", "img": "sku_images_v2/ID_B7ACC0A0572247C2A478764B3FEB86F7.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-10": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-11": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-12": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-15": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-16": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-17": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-18": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2XJ02-B-M", "m": "26SS2XJ02", "pid": "1054498541935", "at": "白色;165/94A（M）", "nm": "SEGI 斜肩波浪袖金属环抽褶绑带垂感飘带上衣【新品限时8折】", "img": "sku_images_v2/ID_B7ACC0A0572247C2A478764B3FEB86F7.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-10": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-11": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-12": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-15": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-16": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-17": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-18": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2DQ14-B-S", "m": "26SS2DQ14", "pid": "1053527398538", "at": "黑色;160/70A（S）", "nm": "醋酸缎面隐形拉链调节开叉包臀裙裤", "img": "sku_images_v2/ID_30B4C6C68B2446B1B00712BD2544BFD5.webp", "h": {"2026-06-16": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-17": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-18": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2NZ18-B-L", "m": "26SS2NZ18", "pid": "1054504457043", "at": "牛仔蓝;170/104A（L）", "nm": "渐变水洗手工猫须定制花纹丝巾绑带牛仔裤", "img": "sku_images_v2/ID_23204B3E10CC417BA11E0EC22ED3A33D.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-10": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-15": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-16": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-17": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-18": {"a": 0, "l": 0, "7": 1, "15": 1}, "2026-06-22": {"a": -1, "l": 1, "7": 1, "15": 1}}}, {"s": "26SS2CZ26-Z-S", "m": "26SS2CZ26", "pid": "1058876580703", "at": "紫色;S", "nm": "SEGI 天丝铜氨手工编织串珠斜肩垂感不对称吊带", "img": "sku_images_v2/ID_4BA7A969FC5349369962A4F975CA0ABE.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2CZ26-Z-L", "m": "26SS2CZ26", "pid": "1058876580703", "at": "紫色;L", "nm": "SEGI 天丝铜氨手工编织串珠斜肩垂感不对称吊带", "img": "sku_images_v2/ID_4BA7A969FC5349369962A4F975CA0ABE.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2CZ26-B-S", "m": "26SS2CZ26", "pid": "1058876580703", "at": "浅黄;S", "nm": "SEGI 天丝铜氨手工编织串珠斜肩垂感不对称吊带", "img": "sku_images_v2/ID_4BA7A969FC5349369962A4F975CA0ABE.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2MX07-B-M", "m": "26SS2MX07", "pid": "1054494173694", "at": "黑色;165/70A（M）", "nm": "SEGI 空气层针织拼接醋酸缎面开叉抹胸【新品限时8折】", "img": "sku_images_v2/ID_07EBD5A2EFC04CC08C0BB2C48D7060AF.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-09": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-10": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-15": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-16": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-17": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-18": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2DK36-S", "m": "26SS2DK36", "pid": "1058888948631", "at": "黑色;S", "nm": "SEGI 紧身弹力分割开叉七分裤", "img": "sku_images_v2/ID_7C0DA5F9641D410EA032AB3BF86F4B9D.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2DK15-W-M", "m": "26SS2DK15", "pid": "1053525710204", "at": "白色;165/72A（M）", "nm": "白桦木色分割镂空刺绣七分裤", "img": "sku_images_v2/ID_5EB61141F7E14A42A4C581A755EEF356.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-05": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-06": {"a": 0, "l": 0, "7": 0, "15": 0}, "2026-06-08": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-09": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-10": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-11": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-12": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-15": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-16": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-17": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-18": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS1KZ46-S", "m": "26SS1KZ46", "pid": "1048373140089", "at": "白色;S", "nm": "SEGI 天丝莱赛尔定制丘比特提花肌理垂感休闲裤女高级慵懒气质", "img": "sku_images_v2/ID_EF8A82A2DB8C491B9BC97CAB1567E7CB.webp", "h": {"2026-06-04": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-05": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-06": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-08": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-09": {"a": -4, "l": 4, "7": 0, "15": 0}, "2026-06-10": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-11": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-12": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-15": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-16": {"a": -3, "l": 3, "7": 0, "15": 0}, "2026-06-17": {"a": -2, "l": 2, "7": 1, "15": 1}, "2026-06-18": {"a": -1, "l": 1, "7": 1, "15": 1}, "2026-06-22": {"a": -1, "l": 1, "7": 1, "15": 1}}}, {"s": "26SS2BQ39-S", "m": "26SS2BQ39", "pid": "1056188163881", "at": "白色;S", "nm": "SEGI 重工激光镂空半裙", "img": "sku_images_v2/ID_5862CAD5180B4758A7E92ED92933ACA2.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS1MY36-L-S", "m": "26SS1MY36", "pid": "1038373118168", "at": "蓝色;160/70A（S）", "nm": "SEGI 羊毛混纺细闪花领针织挂脖吊带背心【新品限时85折】", "img": "sku_images_v2/ID_8FE1E5FC4C774D26A7BCA16E4F26CD91.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 2, "15": 3}, "2026-06-05": {"a": 1, "l": 0, "7": 2, "15": 3}, "2026-06-06": {"a": 1, "l": 0, "7": 2, "15": 3}, "2026-06-08": {"a": 0, "l": 0, "7": 1, "15": 2}, "2026-06-09": {"a": 0, "l": 0, "7": 1, "15": 2}, "2026-06-10": {"a": 0, "l": 0, "7": 1, "15": 2}, "2026-06-11": {"a": 0, "l": 0, "7": 0, "15": 2}, "2026-06-12": {"a": 1, "l": 0, "7": 0, "15": 2}, "2026-06-15": {"a": 0, "l": 1, "7": 0, "15": 2}, "2026-06-16": {"a": 0, "l": 0, "7": 1, "15": 2}, "2026-06-17": {"a": 0, "l": 0, "7": 1, "15": 2}, "2026-06-18": {"a": 0, "l": 0, "7": 1, "15": 2}, "2026-06-22": {"a": -1, "l": 1, "7": 1, "15": 1}}}, {"s": "26SS2BX31-M", "m": "26SS2BX31", "pid": "1056154491318", "at": "黑色;M", "nm": "SEGI 冰感扭结交叉不对称荡领背心", "img": "sku_images_v2/ID_312E054D99844FCB93FE358FB37BDFCD.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2DD21-M", "m": "26SS2DD21", "pid": "1056179187503", "at": "蓝色;M", "nm": "SEGI 压褶双层吊带围巾薄纱上衣", "img": "sku_images_v2/ID_7B6AD951AAF749419BDA43D793432A4A.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2DD21-L", "m": "26SS2DD21", "pid": "1056179187503", "at": "蓝色;L", "nm": "SEGI 压褶双层吊带围巾薄纱上衣", "img": "sku_images_v2/ID_7B6AD951AAF749419BDA43D793432A4A.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "26SS2DL25-H-M", "m": "26SS2DL25", "pid": "1057944905330", "at": "黑色;M", "nm": "SEGI 全棉高捻棉假两件堆叠荡领上衣", "img": "sku_images_v2/ID_568A792CA8A24749878B062C7BFD8248.webp", "h": {"2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}, {"s": "25AWPT1NZK001-L", "m": "25AWPT1NZK001", "pid": "946964098855", "at": "水洗蓝;L", "nm": "SEGI原创设计早秋新款重工猫须渐变闪电纹竹结面料牛仔裤女直筒裤", "img": "sku_images_v2/ID_5FED60CE309A4A52A03E39975190D6BA.webp", "h": {"2026-06-04": {"a": 1, "l": 0, "7": 3, "15": 7}, "2026-06-05": {"a": 1, "l": 0, "7": 2, "15": 6}, "2026-06-06": {"a": 1, "l": 0, "7": 2, "15": 5}, "2026-06-08": {"a": 1, "l": 0, "7": 1, "15": 4}, "2026-06-09": {"a": 1, "l": 0, "7": 1, "15": 4}, "2026-06-10": {"a": 1, "l": 0, "7": 0, "15": 4}, "2026-06-11": {"a": 1, "l": 0, "7": 0, "15": 4}, "2026-06-12": {"a": 0, "l": 0, "7": 1, "15": 4}, "2026-06-15": {"a": 0, "l": 1, "7": 1, "15": 2}, "2026-06-16": {"a": 0, "l": 0, "7": 2, "15": 3}, "2026-06-17": {"a": 0, "l": 0, "7": 2, "15": 3}, "2026-06-18": {"a": 0, "l": 0, "7": 2, "15": 2}, "2026-06-22": {"a": -1, "l": 1, "7": 1, "15": 2}}}, {"s": "25SSPT3TOP046-L", "m": "25SSPT3TOP046", "pid": "933530130198", "at": "深棕色;170/83A（L）", "nm": "SEGI 原创设计夏季新款串珠挂脖拼接波西米亚图腾印花吊带女上衣", "img": "sku_images_v2/ID_1665282559154B5FB5C1E34A4A1FED1F.webp", "h": {"2026-06-04": {"a": 0, "l": 0, "7": 1, "15": 1}, "2026-06-05": {"a": 0, "l": 0, "7": 1, "15": 1}, "2026-06-06": {"a": 0, "l": 0, "7": 1, "15": 1}, "2026-06-08": {"a": 0, "l": 0, "7": 0, "15": 1}, "2026-06-09": {"a": -3, "l": 3, "7": 0, "15": 1}, "2026-06-10": {"a": -4, "l": 4, "7": 0, "15": 1}, "2026-06-11": {"a": -4, "l": 4, "7": 0, "15": 1}, "2026-06-12": {"a": -4, "l": 4, "7": 0, "15": 1}, "2026-06-15": {"a": -2, "l": 2, "7": 0, "15": 1}, "2026-06-16": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-17": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-18": {"a": -2, "l": 2, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 2, "15": 2}}}, {"s": "25SSPT3TOP047-S", "m": "25SSPT3TOP047", "pid": "934597024308", "at": "白蓝;160/74A（S）", "nm": "SEGI 原创设计夏季新款条纹拼接海边度假绑带丝巾背心女吊带上衣", "img": "sku_images_v2/ID_D0005C6BF8EA42D68D9C1676400EDFB0.webp", "h": {"2026-06-04": {"a": 3, "l": 0, "7": 1, "15": 4}, "2026-06-05": {"a": 3, "l": 0, "7": 1, "15": 4}, "2026-06-06": {"a": 3, "l": 0, "7": 1, "15": 3}, "2026-06-08": {"a": 1, "l": 0, "7": 3, "15": 5}, "2026-06-09": {"a": 1, "l": 0, "7": 3, "15": 5}, "2026-06-10": {"a": 1, "l": 0, "7": 3, "15": 5}, "2026-06-11": {"a": 1, "l": 0, "7": 3, "15": 5}, "2026-06-12": {"a": -1, "l": 1, "7": 4, "15": 5}, "2026-06-15": {"a": -2, "l": 2, "7": 2, "15": 6}, "2026-06-16": {"a": 0, "l": 0, "7": 3, "15": 6}, "2026-06-17": {"a": -2, "l": 2, "7": 3, "15": 6}, "2026-06-18": {"a": -1, "l": 1, "7": 5, "15": 8}, "2026-06-22": {"a": -1, "l": 1, "7": 4, "15": 9}}}, {"s": "25SSPT3TOP047-M", "m": "25SSPT3TOP047", "pid": "934597024308", "at": "白蓝;165/78A（M）", "nm": "SEGI 原创设计夏季新款条纹拼接海边度假绑带丝巾背心女吊带上衣", "img": "sku_images_v2/ID_D0005C6BF8EA42D68D9C1676400EDFB0.webp", "h": {"2026-06-04": {"a": 7, "l": 0, "7": 3, "15": 9}, "2026-06-05": {"a": 8, "l": 0, "7": 3, "15": 9}, "2026-06-06": {"a": 8, "l": 0, "7": 1, "15": 9}, "2026-06-08": {"a": 9, "l": 1, "7": 1, "15": 8}, "2026-06-09": {"a": 9, "l": 1, "7": 2, "15": 8}, "2026-06-10": {"a": 9, "l": 0, "7": 3, "15": 8}, "2026-06-11": {"a": 9, "l": 0, "7": 2, "15": 5}, "2026-06-12": {"a": 9, "l": 1, "7": 2, "15": 5}, "2026-06-15": {"a": 9, "l": 0, "7": 3, "15": 4}, "2026-06-16": {"a": 9, "l": 0, "7": 2, "15": 4}, "2026-06-17": {"a": 8, "l": 1, "7": 1, "15": 4}, "2026-06-18": {"a": 5, "l": 0, "7": 2, "15": 5}, "2026-06-22": {"a": -1, "l": 1, "7": 5, "15": 8}}}, {"s": "25AWPT2NT013-S", "m": "25AWPT2NT013", "pid": "983221298852", "at": "深棕色;S", "nm": "SEGI 原创设计冬季新款费尔岛圆领拉链提花毛衣女慵懒上衣", "img": "sku_images_v2/ID_AAE4B64AF3674F0AB01F3C1BE610A749.webp", "h": {"2026-06-04": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-05": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-06": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-08": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-09": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-10": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-11": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-12": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-15": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-16": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-17": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-18": {"a": -1, "l": 1, "7": 0, "15": 0}, "2026-06-22": {"a": -1, "l": 1, "7": 0, "15": 0}}}];
+var DATES = ["2026-06-04", "2026-06-05", "2026-06-06", "2026-06-08", "2026-06-09", "2026-06-10", "2026-06-11", "2026-06-12", "2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-22"];
+var REPLENISH_DATA = [{"mc": "26SS1PF7", "pid": "1030829034834", "nm": "SEGI莱赛尔天丝亚麻一衣多穿抹胸披风假两件上衣【新品限时85折】", "img": "sku_images_v2/ID_FD93608F430F425D858390C84C0A6117.webp", "avail": -23, "transit": 0, "sales7": 171, "sales15": 339, "returns15": 203, "daily7": 24.4, "daily15": 9.1, "days_left_15": -2.5, "order_qty_7": 634, "order_qty_15": 250, "priority": "urgent", "sku_count": 3, "neg_skus": 2, "skus": [{"sku": "26SS1PF7-S", "attr": "深咖啡;160/66A（S）", "avail": -4, "transit": 0, "sales7": 85, "sales15": 154, "returns15": 80}, {"sku": "26SS1PF7-M", "attr": "深咖啡;165/70A（M）", "avail": -29, "transit": 0, "sales7": 55, "sales15": 102, "returns15": 74}, {"sku": "26SS1PF7-L", "attr": "深咖啡;170/74A（L）", "avail": 10, "transit": 0, "sales7": 31, "sales15": 83, "returns15": 49}]}, {"mc": "26SS2PF08", "pid": "1055412244093", "nm": "SEGI 冰感醋酸丝绒拼接不对称网纱飘逸上衣【新品限时8折】", "img": "sku_images_v2/ID_2312055EDCE140478015215101FD4CDD.webp", "avail": -25, "transit": 0, "sales7": 28, "sales15": 29, "returns15": 2, "daily7": 4.0, "daily15": 1.8, "days_left_15": -13.9, "order_qty_7": 125, "order_qty_15": 70, "priority": "urgent", "sku_count": 3, "neg_skus": 3, "skus": [{"sku": "26SS2PF08-P-S", "attr": "紫色;160/70A（S）", "avail": -12, "transit": 0, "sales7": 10, "sales15": 10, "returns15": 1}, {"sku": "26SS2PF08-P-M", "attr": "紫色;165/74A（M）", "avail": -7, "transit": 0, "sales7": 9, "sales15": 10, "returns15": 1}, {"sku": "26SS2PF08-P-L", "attr": "紫色;170/78A（L）", "avail": -6, "transit": 0, "sales7": 9, "sales15": 9, "returns15": 0}]}, {"mc": "26SS2DC04", "pid": "1052741019200", "nm": "SEGI 醋酸抹胸多穿披风玉石抽褶两件套【新品限时8折】", "img": "sku_images_v2/ID_F0F331F2341D48A5B24C34E79E2B4A65.webp", "avail": -2, "transit": 0, "sales7": 13, "sales15": 18, "returns15": 0, "daily7": 1.9, "daily15": 1.2, "days_left_15": -1.7, "order_qty_7": 48, "order_qty_15": 32, "priority": "urgent", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "26SS2DC04-Z-S", "attr": "藏青色;S", "avail": -2, "transit": 0, "sales7": 6, "sales15": 6, "returns15": 0}, {"sku": "26SS2DC04-Z-M", "attr": "藏青色;M", "avail": 0, "transit": 0, "sales7": 7, "sales15": 11, "returns15": 0}, {"sku": "26SS2DC04-Z-L", "attr": "藏青色;L", "avail": 0, "transit": 0, "sales7": 0, "sales15": 1, "returns15": 0}]}, {"mc": "25SSPT3TOP047", "pid": "934597024308", "nm": "SEGI 原创设计夏季新款条纹拼接海边度假绑带丝巾背心女吊带上衣", "img": "sku_images_v2/ID_D0005C6BF8EA42D68D9C1676400EDFB0.webp", "avail": -2, "transit": 0, "sales7": 12, "sales15": 21, "returns15": 9, "daily7": 1.7, "daily15": 0.8, "days_left_15": -2.5, "order_qty_7": 45, "order_qty_15": 22, "priority": "urgent", "sku_count": 3, "neg_skus": 2, "skus": [{"sku": "25SSPT3TOP047-S", "attr": "白蓝;160/74A（S）", "avail": -1, "transit": 0, "sales7": 4, "sales15": 9, "returns15": 2}, {"sku": "25SSPT3TOP047-M", "attr": "白蓝;165/78A（M）", "avail": -1, "transit": 0, "sales7": 5, "sales15": 8, "returns15": 3}, {"sku": "25SSPT3TOP047-L", "attr": "白蓝;170/82A（L）", "avail": 0, "transit": 0, "sales7": 3, "sales15": 4, "returns15": 4}]}, {"mc": "26SS1XJ40", "pid": "1048350896926", "nm": "SEGI 细闪肌理感立体剪裁斜肩串珠抽褶上衣夏季新款女独特设计感", "img": "sku_images_v2/ID_D0CEC24240FC4072956BB91C1104605F.webp", "avail": -30, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0, "daily7": 0.0, "daily15": 0.0, "days_left_15": 999, "order_qty_7": 30, "order_qty_15": 30, "priority": "urgent", "sku_count": 3, "neg_skus": 3, "skus": [{"sku": "26SS1XJ40-S", "attr": "蓝色;160/90A（S）", "avail": -14, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS1XJ40-M", "attr": "蓝色;165/94A（M）", "avail": -12, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS1XJ40-L", "attr": "蓝色;170/98A（L）", "avail": -4, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "25SSPT3TOP046", "pid": "933530130198", "nm": "SEGI 原创设计夏季新款串珠挂脖拼接波西米亚图腾印花吊带女上衣", "img": "sku_images_v2/ID_1665282559154B5FB5C1E34A4A1FED1F.webp", "avail": -1, "transit": 0, "sales7": 8, "sales15": 15, "returns15": 4, "daily7": 1.1, "daily15": 0.7, "days_left_15": -1.4, "order_qty_7": 30, "order_qty_15": 19, "priority": "urgent", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "25SSPT3TOP046-S", "attr": "深棕色;160/75A（S）", "avail": 0, "transit": 0, "sales7": 4, "sales15": 8, "returns15": 1}, {"sku": "25SSPT3TOP046-M", "attr": "深棕色;165/79A（M）", "avail": 0, "transit": 0, "sales7": 2, "sales15": 5, "returns15": 3}, {"sku": "25SSPT3TOP046-L", "attr": "深棕色;170/83A（L）", "avail": -1, "transit": 0, "sales7": 2, "sales15": 2, "returns15": 0}]}, {"mc": "26SS2PD03", "pid": "1052753751031", "nm": "SEGI 定制渲染可拆卸围脖荡褶上衣【新品限时8折】", "img": "sku_images_v2/ID_3683FCA4EE9547CB8B3DA80DD5688B27.webp", "avail": -17, "transit": 0, "sales7": 0, "sales15": 1, "returns15": 0, "daily7": 0.0, "daily15": 0.1, "days_left_15": -255.0, "order_qty_7": 17, "order_qty_15": 19, "priority": "urgent", "sku_count": 3, "neg_skus": 3, "skus": [{"sku": "26SS2PD03-P-S", "attr": "粉桔色;160/104A（S）", "avail": -9, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2PD03-P-M", "attr": "粉桔色;165/108A（M）", "avail": -5, "transit": 0, "sales7": 0, "sales15": 1, "returns15": 0}, {"sku": "26SS2PD03-P-L", "attr": "粉桔色;170/114A（L）", "avail": -3, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "26SS2NZ18", "pid": "1054504457043", "nm": "渐变水洗手工猫须定制花纹丝巾绑带牛仔裤", "img": "sku_images_v2/ID_23204B3E10CC417BA11E0EC22ED3A33D.webp", "avail": -1, "transit": 0, "sales7": 4, "sales15": 4, "returns15": 1, "daily7": 0.6, "daily15": 0.2, "days_left_15": -5.0, "order_qty_7": 15, "order_qty_15": 6, "priority": "urgent", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "26SS2NZ18-B-S", "attr": "牛仔蓝;160/96A（S）", "avail": 0, "transit": 0, "sales7": 3, "sales15": 3, "returns15": 1}, {"sku": "26SS2NZ18-B-M", "attr": "牛仔蓝;165/100A（M）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2NZ18-B-L", "attr": "牛仔蓝;170/104A（L）", "avail": -1, "transit": 0, "sales7": 1, "sales15": 1, "returns15": 0}]}, {"mc": "26SS2DQ14", "pid": "1053527398538", "nm": "醋酸缎面隐形拉链调节开叉包臀裙裤", "img": "sku_images_v2/ID_30B4C6C68B2446B1B00712BD2544BFD5.webp", "avail": -11, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0, "daily7": 0.0, "daily15": 0.0, "days_left_15": 999, "order_qty_7": 11, "order_qty_15": 11, "priority": "urgent", "sku_count": 6, "neg_skus": 4, "skus": [{"sku": "26SS2DQ14-Y-S", "attr": "白色;160/70A（S）", "avail": -3, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DQ14-Y-M", "attr": "白色;165/74A（M）", "avail": -4, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DQ14-Y-L", "attr": "白色;170/78A（L）", "avail": -3, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DQ14-B-S", "attr": "黑色;160/70A（S）", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DQ14-B-M", "attr": "黑色;165/74A（M）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DQ14-B-L", "attr": "黑色;170/78A（L）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "26SS2XJ02", "pid": "1054498541935", "nm": "SEGI 斜肩波浪袖金属环抽褶绑带垂感飘带上衣【新品限时8折】", "img": "sku_images_v2/ID_B7ACC0A0572247C2A478764B3FEB86F7.webp", "avail": -6, "transit": 0, "sales7": 1, "sales15": 1, "returns15": 0, "daily7": 0.1, "daily15": 0.1, "days_left_15": -90.0, "order_qty_7": 10, "order_qty_15": 8, "priority": "urgent", "sku_count": 9, "neg_skus": 4, "skus": [{"sku": "26SS2XJ02-Y-S", "attr": "蓝色;160/90A（S）", "avail": -2, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2XJ02-Y-M", "attr": "蓝色;165/94A（M）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2XJ02-Y-L", "attr": "蓝色;170/98A（L）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2XJ02-H-S", "attr": "黑色;160/90A（S）", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2XJ02-H-M", "attr": "黑色;165/94A（M）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2XJ02-H-L", "attr": "黑色;170/98A（L）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2XJ02-B-S", "attr": "白色;160/90A（S）", "avail": -2, "transit": 0, "sales7": 1, "sales15": 1, "returns15": 0}, {"sku": "26SS2XJ02-B-M", "attr": "白色;165/94A（M）", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2XJ02-B-L", "attr": "白色;170/98A（L）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "26SS2BX09", "pid": "1054496005670", "nm": "SEGI 青果领捏褶压褶塔克线V领背心【新品限时8折】", "img": "sku_images_v2/ID_DD371956A3664A5A8F325179FED19CB0.webp", "avail": -5, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0, "daily7": 0.0, "daily15": 0.0, "days_left_15": 999, "order_qty_7": 5, "order_qty_15": 5, "priority": "urgent", "sku_count": 3, "neg_skus": 2, "skus": [{"sku": "26SS2BX09-K-S", "attr": "奶茶棕;160/78A（S）", "avail": -4, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2BX09-K-M", "attr": "奶茶棕;165/82A（M）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2BX09-K-L", "attr": "奶茶棕;170/86A（L）", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "26SS1KZ46", "pid": "1048373140089", "nm": "SEGI 天丝莱赛尔定制丘比特提花肌理垂感休闲裤女高级慵懒气质", "img": "sku_images_v2/ID_EF8A82A2DB8C491B9BC97CAB1567E7CB.webp", "avail": -1, "transit": 0, "sales7": 1, "sales15": 1, "returns15": 0, "daily7": 0.1, "daily15": 0.1, "days_left_15": -15.0, "order_qty_7": 5, "order_qty_15": 3, "priority": "urgent", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "26SS1KZ46-S", "attr": "白色;S", "avail": -1, "transit": 0, "sales7": 1, "sales15": 1, "returns15": 0}, {"sku": "26SS1KZ46-M", "attr": "白色;M", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS1KZ46-L", "attr": "白色;L", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "26SS2DQ37", "pid": "1056970658590", "nm": "定制印花斑马图案短裙", "img": "sku_images_v2/ID_EB461C15319F49DF8A17EDED2572790D.webp", "avail": -1, "transit": 0, "sales7": 0, "sales15": 1, "returns15": 0, "daily7": 0.0, "daily15": 0.1, "days_left_15": -15.0, "order_qty_7": 1, "order_qty_15": 3, "priority": "urgent", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "26SS2DQ37-S", "attr": "斑马纹;160/74A（S）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DQ37-M", "attr": "斑马纹;165/78A（M）", "avail": -1, "transit": 0, "sales7": 0, "sales15": 1, "returns15": 0}, {"sku": "26SS2DQ37-L", "attr": "斑马纹;170/82A（L）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "26SS2KZ35", "pid": "1056968030565", "nm": "工字褶捏褶水洗垂感长裤", "img": "sku_images_v2/ID_59F6A8CB59564542A119A22C6116FFCF.webp", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0, "daily7": 0.0, "daily15": 0.0, "days_left_15": 999, "order_qty_7": 1, "order_qty_15": 1, "priority": "urgent", "sku_count": 6, "neg_skus": 1, "skus": [{"sku": "26SS2KZ35-Z-S", "attr": "藏青色;160/68A（S）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2KZ35-Z-M", "attr": "藏青色;165/72A（M）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2KZ35-Z-L", "attr": "藏青色;170/76A（L）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2KZ35-S", "attr": "卡其色;160/68A（S）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2KZ35-M", "attr": "卡其色;165/72A（M）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2KZ35-L", "attr": "卡其色;170/76A（L）", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "26SS1MY49", "pid": "1046516942353", "nm": "SEGI 亚麻混纺镂空针织polo短袖女夏季新款休闲设计感慵懒上衣", "img": "sku_images_v2/ID_01D50A5F44A84D02A5B811A8B1FD32D8.webp", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 1, "daily7": 0.0, "daily15": -0.1, "days_left_15": 999, "order_qty_7": 1, "order_qty_15": 0, "priority": "urgent", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "26SS1MY49-S", "attr": "米白色;S", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 1}, {"sku": "26SS1MY49-M", "attr": "米白色;M", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS1MY49-L", "attr": "米白色;L", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "26SS2DK15", "pid": "1053525710204", "nm": "白桦木色分割镂空刺绣七分裤", "img": "sku_images_v2/ID_5EB61141F7E14A42A4C581A755EEF356.webp", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0, "daily7": 0.0, "daily15": 0.0, "days_left_15": 999, "order_qty_7": 1, "order_qty_15": 1, "priority": "urgent", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "26SS2DK15-W-S", "attr": "白色;160/68A（S）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DK15-W-M", "attr": "白色;165/72A（M）", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DK15-W-L", "attr": "白色;170/76A（L）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "25AWPT2NT013", "pid": "983221298852", "nm": "SEGI 原创设计冬季新款费尔岛圆领拉链提花毛衣女慵懒上衣", "img": "sku_images_v2/ID_AAE4B64AF3674F0AB01F3C1BE610A749.webp", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0, "daily7": 0.0, "daily15": 0.0, "days_left_15": 999, "order_qty_7": 1, "order_qty_15": 1, "priority": "urgent", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "25AWPT2NT013-S", "attr": "深棕色;S", "avail": -1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "25AWPT2NT013-M", "attr": "深棕色;M", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "25AWPT2NT013-L", "attr": "深棕色;L", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "26SS1NZK20", "pid": "1031747917572", "nm": "SEGI 奶油雾感淡蓝色清新水洗牛仔裤【新品限时85折】", "img": "sku_images_v2/ID_FA707CB2B5A443AF8E31A38417038B8C.webp", "avail": 37, "transit": 0, "sales7": 76, "sales15": 133, "returns15": 85, "daily7": 10.9, "daily15": 3.2, "days_left_15": 11.6, "order_qty_7": 234, "order_qty_15": 43, "priority": "warning", "sku_count": 3, "neg_skus": 0, "skus": [{"sku": "26SS1NZK20-S", "attr": "淡蓝色;160/70A（S）", "avail": 6, "transit": 0, "sales7": 39, "sales15": 65, "returns15": 39}, {"sku": "26SS1NZK20-M", "attr": "淡蓝色;165/74A（M）", "avail": 28, "transit": 0, "sales7": 21, "sales15": 40, "returns15": 29}, {"sku": "26SS1NZK20-L", "attr": "淡蓝色;170/78A（L）", "avail": 3, "transit": 0, "sales7": 16, "sales15": 28, "returns15": 17}]}, {"mc": "26SS1KZ48", "pid": "1045785263042", "nm": "SEGI亚麻胶质感斜门襟分割纽扣休闲长裤女夏季新款设计感小众裤子", "img": "sku_images_v2/ID_9891E7E7DA9E4E5FB510828E2E592C98.webp", "avail": 17, "transit": 0, "sales7": 33, "sales15": 73, "returns15": 34, "daily7": 4.7, "daily15": 2.6, "days_left_15": 6.5, "order_qty_7": 101, "order_qty_15": 48, "priority": "warning", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "26SS1KZ48-S", "attr": "深咖色;160/68A（S）", "avail": 12, "transit": 0, "sales7": 13, "sales15": 22, "returns15": 11}, {"sku": "26SS1KZ48-M", "attr": "深咖色;165/72A（M）", "avail": 8, "transit": 0, "sales7": 12, "sales15": 28, "returns15": 15}, {"sku": "26SS1KZ48-L", "attr": "深咖色;170/76A（L）", "avail": -3, "transit": 0, "sales7": 8, "sales15": 23, "returns15": 8}]}, {"mc": "25SSPT3NT001", "pid": "913863171800", "nm": "SEGI 原创设计新款天丝亚麻蝴蝶提花镂空针织挂脖开衫背心吊带女", "img": "sku_images_v2/ID_2C7E5708CD304743ACD0BE00E386CEE1.webp", "avail": 11, "transit": 0, "sales7": 21, "sales15": 43, "returns15": 25, "daily7": 3.0, "daily15": 1.2, "days_left_15": 9.2, "order_qty_7": 64, "order_qty_15": 19, "priority": "warning", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "25SSPT3NT001-S", "attr": "米黄;160/68A（S）", "avail": -5, "transit": 0, "sales7": 14, "sales15": 28, "returns15": 13}, {"sku": "25SSPT3NT001-M", "attr": "米黄;165/72A（M）", "avail": 13, "transit": 0, "sales7": 4, "sales15": 9, "returns15": 10}, {"sku": "25SSPT3NT001-L", "attr": "米黄;170/76A（L）", "avail": 3, "transit": 0, "sales7": 3, "sales15": 6, "returns15": 2}]}, {"mc": "25SSPT2AD001", "pid": "921113183320", "nm": "SEGI 原创设计夏季新款雕塑印花拼接长裙女高级感吊带气质连衣裙", "img": "sku_images_v2/ID_38042F92F37B40EC90BD1BE48867B89B.webp", "avail": 6, "transit": 0, "sales7": 12, "sales15": 20, "returns15": 11, "daily7": 1.7, "daily15": 0.6, "days_left_15": 10.0, "order_qty_7": 37, "order_qty_15": 9, "priority": "warning", "sku_count": 3, "neg_skus": 0, "skus": [{"sku": "25SSPT2AD001-S", "attr": "棕色;S", "avail": 4, "transit": 0, "sales7": 3, "sales15": 7, "returns15": 5}, {"sku": "25SSPT2AD001-M", "attr": "棕色;M", "avail": 1, "transit": 0, "sales7": 6, "sales15": 8, "returns15": 4}, {"sku": "25SSPT2AD001-L", "attr": "棕色;L", "avail": 1, "transit": 0, "sales7": 3, "sales15": 5, "returns15": 2}]}, {"mc": "26SS1LC28", "pid": "1040105504876", "nm": "SEGI两穿天丝亚麻花苞抹胸半身裙女显瘦百搭度假风格独特", "img": "sku_images_v2/ID_C1C470AC88A04A4B9260C5222F19CF52.webp", "avail": 4, "transit": 0, "sales7": 7, "sales15": 23, "returns15": 13, "daily7": 1.0, "daily15": 0.7, "days_left_15": 6.0, "order_qty_7": 21, "order_qty_15": 13, "priority": "warning", "sku_count": 3, "neg_skus": 0, "skus": [{"sku": "26SS1LC28-S", "attr": "浅绿条纹;160/70A（S）", "avail": 0, "transit": 0, "sales7": 6, "sales15": 12, "returns15": 9}, {"sku": "26SS1LC28-M", "attr": "浅绿条纹;165/74A（M）", "avail": 3, "transit": 0, "sales7": 1, "sales15": 9, "returns15": 4}, {"sku": "26SS1LC28-L", "attr": "浅绿条纹;170/78A（L）", "avail": 1, "transit": 0, "sales7": 0, "sales15": 2, "returns15": 0}]}, {"mc": "26SS2DD12", "pid": "1053513418317", "nm": "SEGI 高支高密色织格纹吊带串珠上衣【新品限时8折】", "img": "sku_images_v2/ID_7B98325F2FD14C998CA81A3688F43BF9.webp", "avail": 3, "transit": 0, "sales7": 6, "sales15": 9, "returns15": 1, "daily7": 0.9, "daily15": 0.5, "days_left_15": 5.6, "order_qty_7": 18, "order_qty_15": 10, "priority": "warning", "sku_count": 3, "neg_skus": 1, "skus": [{"sku": "26SS2DD12-O-S", "attr": "橙色;160/80A（S）", "avail": 0, "transit": 0, "sales7": 4, "sales15": 4, "returns15": 1}, {"sku": "26SS2DD12-O-M", "attr": "橙色;165/84A（M）", "avail": -1, "transit": 0, "sales7": 2, "sales15": 4, "returns15": 0}, {"sku": "26SS2DD12-O-L", "attr": "橙色;170/88A（L）", "avail": 4, "transit": 0, "sales7": 0, "sales15": 1, "returns15": 0}]}, {"mc": "蕾丝腰带PT", "pid": "", "nm": "SEGI  品牌定制搭配神器 手工蕾丝腰带 多功能个性百搭丝巾发饰", "img": "", "avail": 0, "transit": 0, "sales7": 5, "sales15": 5, "returns15": 0, "daily7": 0.7, "daily15": 0.3, "days_left_15": 0.0, "order_qty_7": 18, "order_qty_15": 8, "priority": "warning", "sku_count": 1, "neg_skus": 0, "skus": [{"sku": "蕾丝腰带", "attr": "白色", "avail": 0, "transit": 0, "sales7": 5, "sales15": 5, "returns15": 0}]}, {"mc": "26SS2V11", "pid": "1052727535576", "nm": "SEGI 醋酸V领隐形拉链收腰泡泡袖缎面针织上衣【新品限时8折】", "img": "sku_images_v2/ID_14555A0B1B344C0397454BDC47693CF8.webp", "avail": 0, "transit": 0, "sales7": 4, "sales15": 5, "returns15": 0, "daily7": 0.6, "daily15": 0.3, "days_left_15": 0.0, "order_qty_7": 14, "order_qty_15": 8, "priority": "warning", "sku_count": 3, "neg_skus": 0, "skus": [{"sku": "26SS2V11-B-S", "attr": "黑色;160/87A（S）", "avail": 0, "transit": 0, "sales7": 3, "sales15": 4, "returns15": 0}, {"sku": "26SS2V11-B-M", "attr": "黑色;165/91A（M）", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2V11-B-L", "attr": "黑色;170/95A（L）", "avail": 0, "transit": 0, "sales7": 1, "sales15": 1, "returns15": 0}]}, {"mc": "26SS1CS42", "pid": "1046502454645", "nm": "SEGI莱赛尔亚麻拼接抹胸半袖微透衬衫女罩衫夏季薄款通勤慵懒气质", "img": "sku_images_v2/ID_01902E690A28463CAB692DC7753B0F22.webp", "avail": 0, "transit": 0, "sales7": 1, "sales15": 2, "returns15": 0, "daily7": 0.1, "daily15": 0.1, "days_left_15": 0.0, "order_qty_7": 4, "order_qty_15": 3, "priority": "warning", "sku_count": 3, "neg_skus": 0, "skus": [{"sku": "26SS1CS42-S", "attr": "米白色;S", "avail": 0, "transit": 0, "sales7": 0, "sales15": 1, "returns15": 0}, {"sku": "26SS1CS42-M", "attr": "米白色;M", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS1CS42-L", "attr": "米白色;L", "avail": 0, "transit": 0, "sales7": 1, "sales15": 1, "returns15": 0}]}, {"mc": "25SSPT3PS001", "pid": "938133949774", "nm": "SEGI 品牌定制 原创复古民族风波西米亚腰绳串珠设计感腰链", "img": "sku_images_v2/ID_1AA3005482004E669CBFA87F97D0A006.webp", "avail": 0, "transit": 0, "sales7": 1, "sales15": 1, "returns15": 0, "daily7": 0.1, "daily15": 0.1, "days_left_15": 0.0, "order_qty_7": 4, "order_qty_15": 2, "priority": "warning", "sku_count": 1, "neg_skus": 0, "skus": [{"sku": "25SSPT3PS001-0", "attr": "粉色", "avail": 0, "transit": 0, "sales7": 1, "sales15": 1, "returns15": 0}]}, {"mc": "25SSPT3TOP012", "pid": "914708029202", "nm": "【黄英李溪芮同款】SEGI夏季新款多色格纹猫咪玉米褶短袖女上衣", "img": "sku_images_v2/ID_6DB0B2BB14AE427BB9BA426B5B13190D.webp", "avail": 0, "transit": 0, "sales7": 0, "sales15": 1, "returns15": 0, "daily7": 0.0, "daily15": 0.1, "days_left_15": 0.0, "order_qty_7": 0, "order_qty_15": 2, "priority": "warning", "sku_count": 1, "neg_skus": 0, "skus": [{"sku": "25SSPT3TOP012-0", "attr": "彩色;均码", "avail": 0, "transit": 0, "sales7": 0, "sales15": 1, "returns15": 0}]}, {"mc": "26SS2DD13", "pid": "1054498473069", "nm": "SEGI 铜氨丝皱感花苞荷叶边吊带上衣【新品限时8折】", "img": "sku_images_v2/ID_E3D12D0B78474970AC6CCFB72AF042EF.webp", "avail": 19, "transit": 0, "sales7": 13, "sales15": 14, "returns15": 0, "daily7": 1.9, "daily15": 0.9, "days_left_15": 20.4, "order_qty_7": 27, "order_qty_15": 4, "priority": "advise", "sku_count": 6, "neg_skus": 0, "skus": [{"sku": "26SS2DD13-Y-S", "attr": "黄色;160/82A（S）", "avail": 0, "transit": 0, "sales7": 4, "sales15": 4, "returns15": 0}, {"sku": "26SS2DD13-Y-M", "attr": "黄色;165/86A（M）", "avail": 0, "transit": 0, "sales7": 6, "sales15": 7, "returns15": 0}, {"sku": "26SS2DD13-Y-L", "attr": "黄色;170/90A（L）", "avail": 5, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DD13-G-S", "attr": "茶棕色;160/82A（S）", "avail": 5, "transit": 0, "sales7": 3, "sales15": 3, "returns15": 0}, {"sku": "26SS2DD13-G-M", "attr": "茶棕色;165/86A（M）", "avail": 4, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "26SS2DD13-G-L", "attr": "茶棕色;170/90A（L）", "avail": 5, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}, {"mc": "25SSPT3TOP003", "pid": "913874203320", "nm": "【王艺瑾同款】SEGI夏季新款定染双层斜肩烫钻铆钉网纱上衣女短袖", "img": "sku_images_v2/ID_A7223C1F196646578FAA7FB8A94BE512.webp", "avail": 14, "transit": 0, "sales7": 8, "sales15": 30, "returns15": 16, "daily7": 1.1, "daily15": 0.9, "days_left_15": 15.0, "order_qty_7": 15, "order_qty_15": 9, "priority": "advise", "sku_count": 3, "neg_skus": 0, "skus": [{"sku": "25SSPT3TOP003-S", "attr": "薄荷绿;160/74A（S）", "avail": 3, "transit": 0, "sales7": 6, "sales15": 16, "returns15": 6}, {"sku": "25SSPT3TOP003-M", "attr": "薄荷绿;165/78A（M）", "avail": 7, "transit": 0, "sales7": 1, "sales15": 8, "returns15": 7}, {"sku": "25SSPT3TOP003-L", "attr": "薄荷绿;170/82A（L）", "avail": 4, "transit": 0, "sales7": 1, "sales15": 6, "returns15": 3}]}, {"mc": "25SSPT3TOP039", "pid": "925990579683", "nm": "SEGI 原创设计夏季新款翻折一字肩针织镂空抹胸上衣女高级感吊带", "img": "sku_images_v2/ID_90BAE023CECB4D68BFDF8124222F8A1C.webp", "avail": 9, "transit": 0, "sales7": 6, "sales15": 15, "returns15": 7, "daily7": 0.9, "daily15": 0.5, "days_left_15": 16.9, "order_qty_7": 12, "order_qty_15": 4, "priority": "advise", "sku_count": 4, "neg_skus": 0, "skus": [{"sku": "25SSPT3TOP039-黑色-S", "attr": "黑色;S", "avail": 0, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "25SSPT3TOP039-黑色-M", "attr": "黑色;M", "avail": 2, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}, {"sku": "25SSPT3TOP039-绿色-S", "attr": "绿色;S", "avail": 3, "transit": 0, "sales7": 3, "sales15": 10, "returns15": 3}, {"sku": "25SSPT3TOP039-绿色-M", "attr": "绿色;M", "avail": 4, "transit": 0, "sales7": 3, "sales15": 5, "returns15": 4}]}, {"mc": "25SSPT3TOP031", "pid": "926905793741", "nm": "SEGI 原创设计夏季新款蓝色小香风绕脖针织不规则下摆抹胸女上衣", "img": "sku_images_v2/ID_CEFA66CA79734E67BF214250C5CB0A2F.webp", "avail": 6, "transit": 0, "sales7": 4, "sales15": 7, "returns15": 1, "daily7": 0.6, "daily15": 0.4, "days_left_15": 15.0, "order_qty_7": 8, "order_qty_15": 4, "priority": "advise", "sku_count": 3, "neg_skus": 0, "skus": [{"sku": "25SSPT3TOP031-S", "attr": "深蓝色;S", "avail": 5, "transit": 0, "sales7": 4, "sales15": 5, "returns15": 1}, {"sku": "25SSPT3TOP031-M", "attr": "深蓝色;M", "avail": 0, "transit": 0, "sales7": 0, "sales15": 2, "returns15": 0}, {"sku": "25SSPT3TOP031-L", "attr": "深蓝色;L", "avail": 1, "transit": 0, "sales7": 0, "sales15": 0, "returns15": 0}]}];
+var VIEW_MODE = 'sku';
+
+// ═══════════════════════════════════════════════════
+// SPU标记功能
+// ═══════════════════════════════════════════════════
+var TAG_NAMES = { 'none': '未处理', 'ordered': '已下单', 'pending': '待定', 'skip': '暂不做' };
+var TAG_ORDER = ['none', 'ordered', 'pending', 'skip'];
+
+function loadTags() {
+  try { return JSON.parse(localStorage.getItem('segi_spu_tags')) || {}; } catch(e) { return {}; }
+}
+function saveTag(mc, tag) {
+  var tags = loadTags();
+  if (tag === 'none' || !tag) delete tags[mc];
+  else tags[mc] = tag;
+  localStorage.setItem('segi_spu_tags', JSON.stringify(tags));
+}
+function getTags() { return loadTags(); }
+function getTag(mc) { var t = loadTags(); return t[mc] || 'none'; }
+
+var CURRENT_TAG_FILTER = 'all';
+
+function renderTagFilter() {
+  var tags = loadTags();
+  var counts = { 'all': 0, 'none': 0, 'ordered': 0, 'pending': 0, 'skip': 0 };
+  REPLENISH_DATA.forEach(function(r) {
+    var t = tags[r.mc] || 'none';
+    counts[t]++; counts['all']++;
+  });
+  var html = '';
+  var items = [['all', '全部 ' + counts.all], ['none', '未处理 ' + counts.none], ['ordered', '已下单 ' + counts.ordered], ['pending', '待定 ' + counts.pending], ['skip', '暂不做 ' + counts.skip]];
+  items.forEach(function(item) {
+    html += '<span class="tag-filter-btn' + (CURRENT_TAG_FILTER === item[0] ? ' active' : '') + '" data-tagf="' + item[0] + '">' + item[1] + '</span>';
+  });
+  var el = document.getElementById('tagFilter');
+  if (el) el.innerHTML = html;
+}
+
+function setTagFilter(f) {
+  CURRENT_TAG_FILTER = f;
+  renderTagFilter();
+  renderReplenishView();
+}
+
+function openTagMenu(mc) {
+  // 关闭其他菜单
+  document.querySelectorAll('.tag-menu').forEach(function(m) { m.classList.remove('open'); });
+  var menu = document.getElementById('tagMenu_' + mc.replace(/[^a-zA-Z0-9_]/g, '_'));
+  if (menu) menu.classList.toggle('open');
+}
+
+function setTag(mc, tag) {
+  saveTag(mc, tag);
+  document.querySelectorAll('.tag-menu').forEach(function(m) { m.classList.remove('open'); });
+  renderReplenishView();
+  renderTagFilter();
+  // 非补货模式下刷新当前视图（SPU/SKU），实现双向同步
+  if (VIEW_MODE !== 'replenish') refreshView();
+}
+
+// 标记交互 — 事件委托
+document.addEventListener('click', function(e) {
+  // 点击标签按钮 → 切换菜单
+  var tagBtn = e.target.closest('.spu-tag');
+  if (tagBtn) {
+    e.stopPropagation();
+    var mc = tagBtn.getAttribute('data-tag-mc');
+    // 关闭其他菜单
+    document.querySelectorAll('.tag-menu').forEach(function(m) { m.classList.remove('open'); });
+    // 用父级查找同级菜单，避免隐藏视图中的同名菜单干扰
+    var menu = tagBtn.parentElement.querySelector('.tag-menu');
+    if (menu) menu.classList.toggle('open');
+    return;
+  }
+  // 点击菜单项 → 设置标签
+  var menuItem = e.target.closest('.tag-menu-item');
+  if (menuItem) {
+    e.stopPropagation();
+    var mc = menuItem.getAttribute('data-tag-mc');
+    var tag = menuItem.getAttribute('data-tag-val');
+    saveTag(mc, tag);
+    document.querySelectorAll('.tag-menu').forEach(function(m) { m.classList.remove('open'); });
+    renderReplenishView();
+    renderTagFilter();
+    // 非补货模式下刷新当前视图，实现双向同步
+    if (VIEW_MODE !== 'replenish') refreshView();
+    return;
+  }
+  // 点击tag筛选按钮 → 切换过滤器
+  var filterBtn = e.target.closest('.tag-filter-btn');
+  if (filterBtn) {
+    var f = filterBtn.getAttribute('data-tagf');
+    if (f) {
+      CURRENT_TAG_FILTER = f;
+      renderTagFilter();
+      renderReplenishView();
+    }
+    return;
+  }
+  // 点击其他地方 → 关闭所有菜单
+  document.querySelectorAll('.tag-menu').forEach(function(m) { m.classList.remove('open'); });
+});
+
+function toggleView(mode) {
+  VIEW_MODE = mode;
+  document.getElementById('btnSkuView').className = mode === 'sku' ? 'view-btn active' : 'view-btn';
+  document.getElementById('btnSpuView').className = mode === 'spu' ? 'view-btn active' : 'view-btn';
+  document.getElementById('btnReplenish').className = mode === 'replenish' ? 'view-btn active' : 'view-btn';
+  document.getElementById('newStockoutWrap').style.display = mode === 'replenish' ? 'none' : '';
+  document.getElementById('replenishWrap').style.display = mode === 'replenish' ? '' : 'none';
+  document.getElementById('dateControls').style.display = mode === 'replenish' ? 'none' : '';
+  document.getElementById('summaryCards').style.display = mode === 'replenish' ? 'none' : '';
+  document.getElementById('tableWrap').style.display = mode === 'replenish' ? 'none' : '';
+  refreshView();
+}
+
+function fmtNum(v) {
+  if (v === null || v === undefined) return '-';
+  return v.toString();
+}
+
+function diffClass(d) {
+  if (d === null || d === undefined) return 'na';
+  if (d > 0) return 'worse';
+  if (d < 0) return 'better';
+  return 'same';
+}
+
+function diffArrow(d) {
+  if (d === null || d === undefined) return '-';
+  if (d > 0) return '↓' + d;
+  if (d < 0) return '↑' + Math.abs(d);
+  return '→0';
+}
+
+function getVal(skuData, date) {
+  var h = skuData['h'];
+  return h[date] ? h[date] : null;
+}
+
+function spuSkuDetail(skus, dateA, dateB) {
+  var parts = [];
+  skus.forEach(function(r) {
+    var va = getVal(r, dateA);
+    var vb = getVal(r, dateB);
+    var aVal = va ? va['a'] : null;
+    var bVal = vb ? vb['a'] : null;
+    var neg = aVal !== null && aVal < 0;
+    var cls = neg ? 'sku-neg' : 'sku-ok';
+    var detail = r['s'] + (r['at'] ? '(' + r['at'] + ')' : '') + ': ' +
+      '<span class="' + cls + '">' + fmtNum(aVal) + '</span>';
+    parts.push('<span class="sku-item">' + detail + '</span>');
+  });
+  return parts.join('');
+}
+
+function getSpuGroup() {
+  var groups = {};
+  ALL_DATA.forEach(function(r) {
+    var key = r['m'] || '(无主编码)';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+  return groups;
+}
+
+function refreshView() {
+  if (VIEW_MODE === 'replenish') {
+    renderReplenishView();
+    return;
+  }
+  var dateA = document.getElementById('dateA').value;
+  var dateB = document.getElementById('dateB').value;
+  document.getElementById('dateInfo').textContent = dateA + ' → ' + dateB;
+
+  if (VIEW_MODE === 'sku') {
+    renderSkuView(dateA, dateB);
+  } else {
+    renderSpuView(dateA, dateB);
+  }
+}
+
+function renderSkuView(dateA, dateB) {
+  var negA = 0, negB = 0, totalA = 0, totalB = 0, change = 0;
+  var newStockouts = [];
+
+  ALL_DATA.forEach(function(row) {
+    var va = getVal(row, dateA);
+    var vb = getVal(row, dateB);
+    if (va && va['a'] !== null) { totalA += va['a']; if (va['a'] < 0) negA++; }
+    if (vb && vb['a'] !== null) { totalB += vb['a']; if (vb['a'] < 0) negB++; }
+    if (va && vb && va['a'] !== null && vb['a'] !== null && vb['a'] >= 0 && va['a'] < 0) {
+      newStockouts.push({ row: row, va: va['a'], vb: vb['a'] });
+    }
+  });
+  change = totalA - totalB;
+
+  // 汇总卡片
+  var sumHtml = '';
+  var cards = [
+    ['基准日缺货SKU数', negA, ''],
+    ['基准日总缺货(件)', totalA, ''],
+    ['对比日总缺货(件)', totalB, ''],
+    ['较对比日变化', change, change >= 0 ? 'better' : 'worse']
+  ];
+  cards.forEach(function(c) {
+    var cls = c[2] ? 'card ' + c[2] : 'card';
+    sumHtml += '<div class="' + cls + '"><div class="num">' + c[1] + '</div><div class="label">' + c[0] + '</div></div>';
+  });
+  document.getElementById('summaryCards').innerHTML = sumHtml;
+
+  // 表格
+  var tableHtml = '<table><tr><th>#</th><th>主编码</th><th>规格编码</th><th>属性</th><th>名称</th><th>图片</th><th class="th-comp">' + dateA + '</th><th class="th-comp">' + dateB + '</th><th class="th-comp">变化</th><th>锁定数</th><th>7天销</th><th>15天销</th></tr>';
+  var idx = 0;
+  ALL_DATA.forEach(function(row) {
+    idx++;
+    var va = getVal(row, dateA);
+    var vb = getVal(row, dateB);
+    var aVal = va ? va['a'] : null;
+    var bVal = vb ? vb['a'] : null;
+    var diff = (aVal !== null && bVal !== null) ? (aVal - bVal) : null;
+    var lockV = va ? va['l'] : null;
+    var s7V = va ? va['7'] : null;
+    var s15V = va ? va['15'] : null;
+
+    var imgHtml = row['img'] ? '<img class="sku-img" src="' + row['img'] + '">' : '<span class="no-img">无图</span>';
+    var negCls = aVal !== null && aVal < 0 ? ' class="neg"' : '';
+
+    tableHtml += '<tr><td>' + idx + '</td><td>' + row['m'] + '</td><td>' + row['s'] + '</td><td>' + row['at'] + '</td><td>' + row['nm'] + '</td><td>' + imgHtml + '</td><td' + negCls + '>' + fmtNum(aVal) + '</td><td>' + fmtNum(bVal) + '</td><td><span class="' + diffClass(diff) + '">' + diffArrow(diff) + '</span></td><td>' + fmtNum(lockV) + '</td><td>' + fmtNum(s7V) + '</td><td>' + fmtNum(s15V) + '</td></tr>';
+  });
+  tableHtml += '</table>';
+  document.getElementById('tableWrap').innerHTML = tableHtml;
+
+  // 新增缺货款式
+  var newHtml = '';
+  if (newStockouts.length === 0) {
+    newHtml = '<div style="text-align:center;padding:20px;color:#999;">对比日(' + dateB + ') 无新增缺货款式</div>';
+  } else {
+    newHtml = '<div style="font-size:13px;color:#e65100;margin-bottom:10px;">对比日(' + dateB + ') 有库存，基准日(' + dateA + ') 新进入缺货状态，共 ' + newStockouts.length + ' 个SKU</div>';
+    newStockouts.forEach(function(item) {
+      var row = item.row;
+      var imgHtml = row['img'] ? '<img class="new-card-img" src="' + row['img'] + '">' : '<div style="width:160px;height:160px;background:#eee;border-radius:6px;flex-shrink:0;"></div>';
+      newHtml += '<div class="new-card">' + imgHtml +
+        '<div class="new-card-info"><div class="new-card-sku">' + row['s'] + '</div>' +
+        '<div class="new-card-name">' + row['nm'] + '</div>' +
+        '<div class="new-card-attrs"><span class="new-card-attr">' + row['m'] + '</span><span class="new-card-attr">' + row['at'] + '</span></div></div>' +
+        '<div class="new-card-nums"><div class="new-card-today">' + fmtNum(item.va) + '</div>' +
+        '<div class="new-card-yest">' + dateB + ': ' + fmtNum(item.vb) + '</div>' +
+        '<div class="new-card-badge">新增缺货</div></div></div>';
+    });
+  }
+  document.getElementById('newStockoutContent').innerHTML = newHtml;
+}
+
+function renderSpuView(dateA, dateB) {
+  var groups = getSpuGroup();
+  var groupKeys = Object.keys(groups);
+
+  // 先计算每个SPU的欠货总和，然后按欠货总数从多到少排序（负数越大越靠前）
+  var spuSums = [];
+  groupKeys.forEach(function(key) {
+    var skus = groups[key];
+    var sumA = 0, hasNegA = false;
+    skus.forEach(function(r) {
+      var va = getVal(r, dateA);
+      if (va && va['a'] !== null) { sumA += va['a']; if (va['a'] < 0) hasNegA = true; }
+    });
+    if (hasNegA) spuSums.push({ key: key, sumA: sumA });
+  });
+  // 按 sumA 升序排列（负值最大即欠货最多的排最前）
+  spuSums.sort(function(a, b) { return a.sumA - b.sumA; });
+
+  // SPU汇总统计
+  var negSpuCount = spuSums.length;
+  var totalNegSum = spuSums.reduce(function(s, item) { return s + item.sumA; }, 0);
+
+  // 汇总卡片
+  var sumHtml = '';
+  var cards = [
+    ['基准日缺货款式数', negSpuCount, ''],
+    ['基准日款式总欠货(件)', totalNegSum, '']
+  ];
+  cards.forEach(function(c) {
+    var cls = c[2] ? 'card ' + c[2] : 'card';
+    sumHtml += '<div class="' + cls + '"><div class="num">' + c[1] + '</div><div class="label">' + c[0] + '</div></div>';
+  });
+  document.getElementById('summaryCards').innerHTML = sumHtml;
+
+  // 表格 - SPU视图
+  var tableHtml = '<table><tr><th>#</th><th>主编码</th><th>商品ID</th><th>名称</th><th>图片</th><th>标记</th><th>欠货总数</th><th>各SKU欠货明细</th></tr>';
+  var idx = 0;
+  spuSums.forEach(function(item) {
+    var key = item.key;
+    var skus = groups[key];
+    var firstWithImg = null;
+    var sumA = 0;
+    var spuPid = '';
+    skus.forEach(function(r) {
+      var va = getVal(r, dateA);
+      if (va && va['a'] !== null) sumA += va['a'];
+      if (!firstWithImg && r['img']) firstWithImg = r;
+      if (!spuPid && r['pid']) spuPid = r['pid'];
+    });
+
+    idx++;
+    var disp = firstWithImg || skus[0];
+    var imgHtml = disp['img'] ? '<img class="sku-img spu-img-hover" data-spu-key="' + key.replace(/"/g, '&quot;') + '" src="' + disp['img'] + '">' : '<span class="no-img">无图</span>';
+    var detailHtml = spuSkuDetail(skus, dateA, dateB);
+
+    tableHtml += '<tr class="spu-row"><td>' + idx + '</td><td>' + key + '</td><td>' + spuPid + '</td><td>' + disp['nm'] + '</td><td>' + imgHtml +
+      '</td><td>' + (function(){
+        var k = key.replace(/"/g, '&quot;');
+        var t = getTag(key);
+        var dot = '<span class="spu-tag-dot ' + (t==='ordered'?'g':t==='pending'?'y':t==='skip'?'gy':'n') + '"></span>';
+        return '<span style="position:relative;display:inline-block;">' +
+          '<span class="spu-tag ' + t + '" data-tag-mc="' + k + '">' + dot + ' ' + TAG_NAMES[t] + ' ▾</span>' +
+          '<div class="tag-menu" data-tag-mc="' + k + '">' +
+          TAG_ORDER.map(function(tag) {
+            var td = '<span class="spu-tag-dot ' + (tag==='ordered'?'g':tag==='pending'?'y':tag==='skip'?'gy':'n') + '"></span>';
+            return '<div class="tag-menu-item" data-tag-mc="' + k + '" data-tag-val="' + tag + '">' + td + ' ' + TAG_NAMES[tag] + '</div>';
+          }).join('') +
+          '</div></span>';
+      })() + '</td><td class="spu-total">' + sumA + '</td><td class="spu-sku-detail">' + detailHtml + '</td></tr>';
+  });
+  tableHtml += '</table>';
+  document.getElementById('tableWrap').innerHTML = tableHtml;
+
+  // SPU视图下隐藏新增缺货区域
+  document.getElementById('newStockoutContent').innerHTML = '';
+}
+
+// ═══════════════════════════════════════════════════
+// 补货建议视图
+// ═══════════════════════════════════════════════════
+var PRIORITY_LABEL = { 'urgent': '紧急', 'warning': '预警', 'advise': '建议', 'observe': '观察' };
+
+function renderReplenishView() {
+  var tags = getTags();
+  // 过滤：排除"暂不做"的，按当前过滤器筛选
+  var filtered = REPLENISH_DATA.filter(function(r) {
+    var t = tags[r.mc] || 'none';
+    if (t === 'skip') return false; // 暂不做永远排除
+    if (CURRENT_TAG_FILTER === 'all') return true;
+    return t === CURRENT_TAG_FILTER;
+  });
+
+  var totalUrgent = 0, totalWarning = 0, totalQty15 = 0;
+  filtered.forEach(function(r) {
+    if (r.priority === 'urgent') totalUrgent++;
+    if (r.priority === 'warning') totalWarning++;
+    totalQty15 += r.order_qty_15;
+  });
+
+  var sumHtml = '';
+  var cards = [
+    ['需补货款式', filtered.length, ''],
+    ['紧急缺货', totalUrgent, 'better'],
+    ['库存预警', totalWarning, ''],
+    ['建议采购(15天)', totalQty15 + '件', ''],
+  ];
+  cards.forEach(function(c) {
+    var cls = c[2] ? 'card ' + c[2] : 'card';
+    sumHtml += '<div class="' + cls + '"><div class="num">' + c[1] + '</div><div class="label">' + c[0] + '</div></div>';
+  });
+  document.getElementById('replenishCards').innerHTML = sumHtml;
+
+  renderTagFilter();
+
+  var html = '';
+  filtered.forEach(function(r) {
+    var imgHtml = r['img'] ? '<img class="replenish-img" src="' + r['img'] + '">' : '<div style="width:144px;height:144px;background:#eee;border-radius:6px;flex-shrink:0;"></div>';
+    var badge = '<span class="priority-badge ' + r.priority + '">' + PRIORITY_LABEL[r.priority] + '</span>';
+    var mcDisplay = r['mc'] + (r['pid'] ? ' / ' + r['pid'] : '');
+    var t = tags[r.mc] || 'none';
+    var tagDot = '<span class="spu-tag-dot ' + (t==='ordered'?'g':t==='pending'?'y':t==='skip'?'gy':'n') + '"></span>';
+    var tagHtml = '<span style="position:relative;display:inline-block;">' +
+      '<span class="spu-tag ' + t + '" data-tag-mc="' + r.mc + '">' + tagDot + ' ' + TAG_NAMES[t] + ' ▾</span>' +
+      '<div class="tag-menu" data-tag-mc="' + r.mc + '">' +
+      TAG_ORDER.map(function(tag) { return '<div class="tag-menu-item" data-tag-mc="' + r.mc + '" data-tag-val="' + tag + '"><span class="spu-tag-dot ' + (tag==='ordered'?'g':tag==='pending'?'y':tag==='skip'?'gy':'n') + '"></span> ' + TAG_NAMES[tag] + '</div>'; }).join('') +
+      '</div></span>';
+    html += '<div class="replenish-card ' + r.priority + '" data-spu="' + r.mc + '">' +
+      imgHtml +
+      '<div class="replenish-info"><div class="replenish-mc">' + mcDisplay + ' ' + badge + ' ' + tagHtml + '</div>' +
+      '<div class="replenish-nm">' + r.nm + '</div>' +
+      '<div class="replenish-stats"><span>可用 ' + r.avail + '</span><span>在途 ' + r.transit + '</span><span>7天销 ' + r.sales7 + '</span><span>15天销 ' + r.sales15 + '</span><span>退 ' + r.returns15 + '</span><span>SKU:' + r.sku_count + '(缺' + r.neg_skus + ')</span></div></div>' +
+      '<div class="replenish-rhs"><div class="replenish-qty ' + r.priority + '">15天:+' + r.order_qty_15 + '</div>' +
+      '<div style="font-size:11px;color:#999;">7天:+' + r.order_qty_7 + '</div>' +
+      '<div class="replenish-days">可售 ' + r.days_left_15 + '天(15天)</div>' +
+      '<div class="replenish-sub">点击调整</div></div></div>';
+  });
+  if (!html) html = '<div style="text-align:center;padding:30px;color:#999;">所有款式库存充足，无需补货</div>';
+  document.getElementById('replenishContent').innerHTML = html;
+}
+
+// 补货卡片点击事件委托（排除标签交互）
+document.addEventListener('click', function(e) {
+  if (e.target.closest('.spu-tag') || e.target.closest('.tag-menu-item') || e.target.closest('.tag-menu')) return;
+  var card = e.target.closest('.replenish-card');
+  if (card) {
+    openCalculator(card.getAttribute('data-spu'));
+  }
+});
+
+// ═══════════════════════════════════════════════════
+// 补货计算器
+// ═══════════════════════════════════════════════════
+
+
+var CURRENT_SPU = null;
+var ORIG_SKUS = null;
+
+function openCalculator(spuKey) {
+  var spu = null;
+  for (var i = 0; i < REPLENISH_DATA.length; i++) {
+    if (REPLENISH_DATA[i].mc === spuKey) { spu = REPLENISH_DATA[i]; break; }
+  }
+  if (!spu) return;
+
+  CURRENT_SPU = spu;
+  ORIG_SKUS = JSON.parse(JSON.stringify(spu.skus));
+  // 初始化站外欠货为0
+  spu.skus.forEach(function(sk) { if (sk.externalDeficit === undefined) sk.externalDeficit = 0; });
+  ORIG_SKUS.forEach(function(sk) { if (sk.externalDeficit === undefined) sk.externalDeficit = 0; });
+  spu.externalDeficit = 0;
+
+  document.getElementById('calcTitle').textContent = spuKey + ' ' + spu.nm;
+  document.getElementById('calcSub').textContent = '商品ID: ' + spu.pid + ' | SKU ' + spu.sku_count + '（缺' + spu.neg_skus + '）';
+
+  document.getElementById('cAvail').min = -500;
+  document.getElementById('cAvail').max = Math.max(Math.abs(spu.avail) + 300, 500);
+  document.getElementById('cTransit').max = Math.max(spu.transit + 200, 300);
+  document.getElementById('cSales15').max = Math.max(spu.sales15 + 200, 500);
+  document.getElementById('cSales7').max = Math.max(spu.sales7 + 200, 500);
+  document.getElementById('cReturns15').max = Math.max(spu.returns15 + 200, 300);
+
+  document.getElementById('cAvail').value = spu.avail;
+  document.getElementById('cTransit').value = spu.transit;
+  document.getElementById('cSales15').value = spu.sales15;
+  document.getElementById('cSales7').value = spu.sales7;
+  document.getElementById('cReturns15').value = spu.returns15;
+  document.getElementById('totalAlloc').value = 0;
+  document.getElementById('allocStatus').textContent = '';
+
+  document.getElementById('calcOverlay').classList.add('show');
+  renderSkuTable(spu.skus);
+  recalc();
+}
+
+function closeCalculator() {
+  document.getElementById('calcOverlay').classList.remove('show');
+  CURRENT_SPU = null;
+  ORIG_SKUS = null;
+}
+
+function renderSkuTable(skus) {
+  var lt = parseInt(document.getElementById('cLeadTime').value);
+  var ss = parseInt(document.getElementById('cSafety').value);
+  var cov = lt + ss;
+  // 先算一轮：基础补货量（基于ERP数据），再+站外欠货 = 最终下单量
+  var skuData = skus.map(function(sk) {
+    var daily7 = sk.sales7 / 7;
+    var daily15 = Math.max(0, (sk.sales15 - sk.returns15) / 15);
+    var base7 = Math.max(0, Math.ceil(cov * daily7 - sk.avail - sk.transit));
+    var base15 = Math.max(0, Math.ceil(cov * daily15 - sk.avail - sk.transit));
+    var baseOrder = Math.max(base7, base15);
+    var deficit = sk.externalDeficit || 0;
+    var finalOrder = baseOrder + deficit;
+    return {
+      sk: sk, daily7: daily7, daily15: daily15,
+      base7: base7, base15: base15, baseOrder: baseOrder,
+      deficit: deficit, finalOrder: finalOrder
+    };
+  });
+  var totalFinal = skuData.reduce(function(s, d) { return s + d.finalOrder; }, 0);
+  var html = '<table class="sku-detail-table"><thead><tr><th>SKU</th><th>属性</th><th>可用</th><th>在途</th><th>7天销</th><th>15天销</th><th>退货</th><th>7天日均</th><th>15天日均</th><th>基础下单</th><th>站外欠货</th><th>补货库存</th><th>占比</th></tr></thead><tbody>';
+  skuData.forEach(function(d, i) {
+    var pct = totalFinal > 0 ? (d.finalOrder / totalFinal * 100) : 0;
+    var barW = Math.min(pct, 100);
+    html += '<tr><td>' + d.sk.sku + '</td><td>' + (d.sk.attr || '-') + '</td>' +
+      '<td><input type="number" value="' + d.sk.avail + '" d-idx="' + i + '" d-fld="avail"></td>' +
+      '<td><input type="number" value="' + d.sk.transit + '" d-idx="' + i + '" d-fld="transit"></td>' +
+      '<td><input type="number" value="' + d.sk.sales7 + '" d-idx="' + i + '" d-fld="sales7"></td>' +
+      '<td><input type="number" value="' + d.sk.sales15 + '" d-idx="' + i + '" d-fld="sales15"></td>' +
+      '<td><input type="number" value="' + d.sk.returns15 + '" d-idx="' + i + '" d-fld="returns15"></td>' +
+      '<td>' + d.daily7.toFixed(1) + '</td><td>' + d.daily15.toFixed(1) + '</td>' +
+      '<td style="color:#8892a4;font-weight:400;">' + d.baseOrder + '</td>' +
+      '<td><input type="number" value="' + d.deficit + '" d-idx="' + i + '" d-fld="externalDeficit" style="width:52px;background:#fffbe6;border-color:#fcd34d;"></td>' +
+      '<td><input type="number" value="' + d.finalOrder + '" d-idx="' + i + '" d-fld="replenish" style="color:#1565c0;font-weight:700;width:50px;"></td>' +
+      '<td style="min-width:64px;"><div style="background:#e8eaf0;border-radius:2px;height:8px;width:56px;display:inline-block;vertical-align:middle;margin-right:4px;"><div style="background:#4455cc;height:8px;border-radius:2px;width:' + barW + '%;"></div></div><span style="font-size:10px;color:#555;vertical-align:middle;">' + pct.toFixed(1) + '%</span></td></tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('skuTableWrap').innerHTML = html;
+  // 绑定所有input的change事件
+  document.querySelectorAll('#skuTableWrap input[type=number]').forEach(function(inp) {
+    inp.addEventListener('change', onSkuChange);
+  });
+}
+
+function recalc() {
+  var a = parseInt(document.getElementById('cAvail').value);
+  var i = parseInt(document.getElementById('cTransit').value);
+  var s15 = parseInt(document.getElementById('cSales15').value);
+  var s7 = parseInt(document.getElementById('cSales7').value);
+  var r = parseInt(document.getElementById('cReturns15').value);
+  var lt = parseInt(document.getElementById('cLeadTime').value);
+  var ss = parseInt(document.getElementById('cSafety').value);
+
+  document.getElementById('cAvailVal').textContent = a;
+  document.getElementById('cTransitVal').textContent = i;
+  document.getElementById('cSales15Val').textContent = s15;
+  document.getElementById('cSales7Val').textContent = s7;
+  document.getElementById('cReturns15Val').textContent = r;
+
+  var coverage = lt + ss;
+  var daily7 = s7 / 7;
+  var order7 = Math.max(0, Math.ceil(coverage * daily7 - a - i));
+  document.getElementById('cDaily7').textContent = daily7.toFixed(1) + '件/天';
+  document.getElementById('cOrder7').textContent = order7 + '件';
+
+  var daily15 = Math.max(0, (s15 - r) / 15);
+  var order15 = Math.max(0, Math.ceil(coverage * daily15 - a - i));
+  document.getElementById('cDaily15').textContent = daily15.toFixed(1) + '件/天';
+  document.getElementById('cOrder15').textContent = order15 + '件';
+
+  var extDef = CURRENT_SPU && CURRENT_SPU.externalDeficit ? CURRENT_SPU.externalDeficit : 0;
+  var extNote = extDef > 0 ? ' | 站外欠货+<strong>' + extDef + '</strong>件，建议下单<strong>' + (Math.max(order7, order15) + extDef) + '</strong>件' : '';
+  var resDiv = document.getElementById('calcResult');
+  if (a < 0 && daily15 <= 0 && daily7 <= 0) {
+    resDiv.className = 'calc-result urgent';
+    resDiv.innerHTML = '<strong>紧急缺货</strong> 可用库存 ' + a + ' 件，无销售数据。' + extNote;
+  } else if (a < 0) {
+    resDiv.className = 'calc-result urgent';
+    resDiv.innerHTML = '<strong>紧急缺货！</strong> 可用 <strong>' + a + '</strong> 件。基础下单 <strong>' + Math.max(order7, order15, Math.abs(a)) + '</strong> 件（7天' + order7 + ' / 15天' + order15 + '）' + extNote;
+  } else if (daily15 <= 0 && daily7 <= 0) {
+    resDiv.className = 'calc-result';
+    resDiv.innerHTML = '无近期销售数据，建议核实商品状态。' + extNote;
+  } else {
+    var d7 = a / daily7 > 0 ? (a / daily7).toFixed(1) : '充足';
+    var d15 = daily15 > 0 ? (a / daily15).toFixed(1) : '充足';
+    resDiv.className = 'calc-result advise';
+    resDiv.innerHTML = '可售: ' + d7 + '天(7天) / ' + d15 + '天(15天)。基础下单: <strong>' + order7 + '</strong>件(7天) / <strong>' + order15 + '</strong>件(15天)，覆盖' + coverage + '天。' + extNote;
+  }
+
+  if (CURRENT_SPU) {
+    var o = CURRENT_SPU;
+    for (var j = 0; j < o.skus.length; j++) {
+      var og = ORIG_SKUS[j];
+      o.skus[j].avail = Math.round(og.avail * (o.avail !== 0 ? (a / o.avail) : 1));
+      o.skus[j].transit = Math.round(og.transit * (o.transit !== 0 ? (i / o.transit) : 1));
+      o.skus[j].sales7 = Math.round(og.sales7 * (o.sales7 !== 0 ? (s7 / o.sales7) : 1));
+      o.skus[j].sales15 = Math.round(og.sales15 * (o.sales15 !== 0 ? (s15 / o.sales15) : 1));
+      o.skus[j].returns15 = Math.round(og.returns15 * (o.returns15 !== 0 ? (r / o.returns15) : 1));
+    }
+    renderSkuTable(o.skus);
+  }
+}
+
+function onSkuChange() {
+  var inputs = document.querySelectorAll('#skuTableWrap input[d-fld]');
+  var sums = { avail: 0, transit: 0, sales7: 0, sales15: 0, returns15: 0, externalDeficit: 0 };
+  inputs.forEach(function(inp) {
+    var f = inp.getAttribute('d-fld');
+    if (f === 'replenish') return; // 补货库存是计算结果，不参与汇总
+    var v = parseInt(inp.value) || 0;
+    if (f === 'externalDeficit') sums.externalDeficit += v;
+    else sums[f] += v;
+  });
+  // 站外欠货是独立需求，不加入SPU的15天销量
+  document.getElementById('cAvail').value = sums.avail;
+  document.getElementById('cTransit').value = sums.transit;
+  document.getElementById('cSales7').value = sums.sales7;
+  document.getElementById('cSales15').value = sums.sales15;
+  document.getElementById('cReturns15').value = sums.returns15;
+  if (CURRENT_SPU) {
+    CURRENT_SPU.avail = sums.avail; CURRENT_SPU.transit = sums.transit;
+    CURRENT_SPU.sales7 = sums.sales7; CURRENT_SPU.sales15 = sums.sales15; CURRENT_SPU.returns15 = sums.returns15;
+    CURRENT_SPU.externalDeficit = sums.externalDeficit;
+  }
+  // 更新CURRENT_SPU.skus为当前输入值，然后刷新表格(含占比)
+  if (CURRENT_SPU && CURRENT_SPU.skus) {
+    var idxMap = {};
+    document.querySelectorAll('#skuTableWrap input[d-fld]').forEach(function(inp) {
+      var idx = parseInt(inp.getAttribute('d-idx'));
+      var fld = inp.getAttribute('d-fld');
+      if (!idxMap[idx]) idxMap[idx] = {};
+      idxMap[idx][fld] = parseInt(inp.value) || 0;
+    });
+    CURRENT_SPU.skus.forEach(function(sk, i) {
+      if (idxMap[i]) {
+        if (idxMap[i].avail !== undefined) sk.avail = idxMap[i].avail;
+        if (idxMap[i].transit !== undefined) sk.transit = idxMap[i].transit;
+        if (idxMap[i].sales7 !== undefined) sk.sales7 = idxMap[i].sales7;
+        if (idxMap[i].sales15 !== undefined) sk.sales15 = idxMap[i].sales15;
+        if (idxMap[i].returns15 !== undefined) sk.returns15 = idxMap[i].returns15;
+        if (idxMap[i].externalDeficit !== undefined) sk.externalDeficit = idxMap[i].externalDeficit;
+      }
+    });
+    renderSkuTable(CURRENT_SPU.skus);
+  }
+  recalc();
+}
+
+function doAlloc() {
+  var total = parseInt(document.getElementById('totalAlloc').value) || 0;
+  if (total <= 0) { document.getElementById('allocStatus').textContent = '请输入大于0的补货总量'; return; }
+  var basis = document.getElementById('allocBasis').value;
+  var inputs = document.querySelectorAll('#skuTableWrap input[d-fld="replenish"]');
+  var skus = CURRENT_SPU ? CURRENT_SPU.skus : null;
+  if (!skus || inputs.length === 0) return;
+  var lt = parseInt(document.getElementById('cLeadTime').value);
+  var ss = parseInt(document.getElementById('cSafety').value);
+  var cov = lt + ss;
+  var weights = [], sumW = 0;
+  for (var i = 0; i < inputs.length; i++) {
+    var row = skus[i];
+    var o7 = Math.max(0, Math.ceil(cov * (row.sales7 / 7) - row.avail - row.transit));
+    var o15 = Math.max(0, Math.ceil(cov * (Math.max(0, row.sales15 - row.returns15) / 15) - row.avail - row.transit));
+    // 分配权重基于ERP基础补货量（不含站外欠货），保证分配公平
+    var w = basis === 'equal' ? 1 : (basis === '7' ? Math.max(o7, 1) : (basis === '15' ? Math.max(o15, 1) : Math.max(o7, o15, 1)));
+    weights.push(w); sumW += w;
+  }
+  var allocated = 0;
+  for (var i = 0; i < inputs.length; i++) {
+    var qty = Math.round(total * weights[i] / sumW);
+    if (i === inputs.length - 1) qty = Math.max(0, total - allocated);
+    inputs[i].value = qty;
+    allocated += qty;
+  }
+  document.getElementById('allocStatus').textContent = '已分配 ' + allocated + ' 件';
+}
+
+function resetCalculator() {
+  if (!CURRENT_SPU || !ORIG_SKUS) return;
+  CURRENT_SPU.skus = JSON.parse(JSON.stringify(ORIG_SKUS));
+  var sums = { avail: 0, transit: 0, sales7: 0, sales15: 0, returns15: 0 };
+  ORIG_SKUS.forEach(function(sk) {
+    sums.avail += sk.avail; sums.transit += sk.transit; sums.sales7 += sk.sales7; sums.sales15 += sk.sales15; sums.returns15 += sk.returns15;
+  });
+  CURRENT_SPU.avail = sums.avail; CURRENT_SPU.transit = sums.transit;
+  CURRENT_SPU.sales7 = sums.sales7; CURRENT_SPU.sales15 = sums.sales15; CURRENT_SPU.returns15 = sums.returns15;
+  CURRENT_SPU.externalDeficit = 0;
+  document.getElementById('cAvail').value = sums.avail;
+  document.getElementById('cTransit').value = sums.transit;
+  document.getElementById('cSales7').value = sums.sales7;
+  document.getElementById('cSales15').value = sums.sales15;
+  document.getElementById('cReturns15').value = sums.returns15;
+  document.getElementById('totalAlloc').value = 0;
+  document.getElementById('allocStatus').textContent = '';
+  renderSkuTable(ORIG_SKUS);
+  recalc();
+}
+
+document.getElementById('calcOverlay').addEventListener('click', function(e) { if (e.target === this) closeCalculator(); });
+['cAvail','cTransit','cSales15','cSales7','cReturns15','cLeadTime','cSafety'].forEach(function(id) { document.getElementById(id).addEventListener('input', recalc); });
+
+
+
+// 默认加载
+refreshView();
+
+// ═══════════════════════════════════════════════
+// SPU 欠货趋势图（hover 图片弹出）
+// ═══════════════════════════════════════════════
+var trendTooltip = document.getElementById('trendTooltip');
+var trendTitle = document.getElementById('trendTitle');
+var trendChartWrap = document.getElementById('trendChartWrap');
+
+function getSpuTrendData(spuKey) {
+  var groups = getSpuGroup();
+  var skus = groups[spuKey];
+  if (!skus) return null;
+  // 每个日期汇总该SPU所有SKU的可用数
+  var trend = [];
+  DATES.forEach(function(d) {
+    var sumA = 0, sumL = 0, count = 0;
+    skus.forEach(function(r) {
+      var v = getVal(r, d);
+      if (v && v['a'] !== null) { sumA += v['a']; count++; }
+      if (v && v['l'] !== null) sumL += v['l'];
+    });
+    if (count > 0) {
+      trend.push({ date: d, avail: sumA, lock: sumL });
+    }
+  });
+  return trend;
+}
+
+function renderTrendSVG(trend) {
+  if (!trend || trend.length < 2) return '<div style="font-size:14px;color:#999;text-align:center;padding:20px;">数据不足</div>';
+
+  var W = 520, H = 380;
+  var padL = 48, padR = 20, padT = 30, padB = 80;
+  var cw = W - padL - padR, ch = H - padT - padB;
+  var n = trend.length;
+
+  var minVal = 0;
+  trend.forEach(function(t) { if (t.avail < minVal) minVal = t.avail; });
+  var yMin = minVal - Math.max(3, Math.abs(minVal) * 0.15);
+  var yMax = Math.max(3, Math.abs(yMin) * 0.25);
+  var yRange = yMax - yMin;
+
+  function xPos(i) { return padL + (i / (n - 1)) * cw; }
+  function yPos(v) { return padT + ((yMax - v) / yRange) * ch; }
+
+  var zeroY = yPos(0);
+  var hasNeg = minVal < 0;
+
+  var svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+
+  svg += '<rect x="' + padL + '" y="' + padT + '" width="' + cw + '" height="' + ch + '" fill="#fafafa" rx="3"/>';
+
+  var gridSteps = 5;
+  for (var s = 0; s <= gridSteps; s++) {
+    var val = yMin + (yRange / gridSteps) * s;
+    var y = yPos(val);
+    svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (padL + cw) + '" y2="' + y + '" stroke="#eee" stroke-width="0.8"/>';
+    svg += '<text x="' + (padL - 6) + '" y="' + (y + 4) + '" text-anchor="end" fill="#888" font-size="11">' + Math.round(val) + '</text>';
+  }
+
+  if (hasNeg && zeroY > padT && zeroY < padT + ch) {
+    svg += '<line x1="' + padL + '" y1="' + zeroY + '" x2="' + (padL + cw) + '" y2="' + zeroY + '" stroke="#d32f2f" stroke-width="1.5" stroke-dasharray="6,4"/>';
+    svg += '<text x="' + (padL - 8) + '" y="' + (zeroY + 4) + '" text-anchor="end" fill="#d32f2f" font-size="11" font-weight="600">0</text>';
+  }
+
+  if (hasNeg) {
+    var areaPoints = '';
+    for (var i = 0; i < n; i++) {
+      areaPoints += xPos(i) + ',' + yPos(Math.min(trend[i].avail, 0)) + ' ';
+    }
+    areaPoints += xPos(n-1) + ',' + zeroY + ' ' + xPos(0) + ',' + zeroY;
+    svg += '<polygon points="' + areaPoints + '" fill="rgba(211,47,47,0.18)"/>';
+  }
+
+  var linePoints = '';
+  for (var i = 0; i < n; i++) {
+    linePoints += (i > 0 ? ' L ' : 'M ') + xPos(i) + ' ' + yPos(trend[i].avail);
+  }
+  svg += '<path d="' + linePoints + '" fill="none" stroke="#d32f2f" stroke-width="2.5" stroke-linejoin="round"/>';
+
+  for (var i = 0; i < n; i++) {
+    var cx = xPos(i), cy = yPos(trend[i].avail);
+    var isNeg = trend[i].avail < 0;
+    var val = trend[i].avail;
+
+    svg += '<circle cx="' + cx + '" cy="' + cy + '" r="4.5" fill="' + (isNeg ? '#d32f2f' : '#4caf50') + '" stroke="#fff" stroke-width="2"/>';
+
+    var ty = cy - 12;
+    if (ty < padT + 2) ty = cy + 18;
+    var tx = cx;
+    svg += '<text x="' + tx + '" y="' + ty + '" text-anchor="middle" fill="' + (isNeg ? '#d32f2f' : '#2e7d32') + '" font-size="12" font-weight="700">' + val + '</text>';
+
+    var d = trend[i].date;
+    var short = d.substring(5);
+    svg += '<text x="' + cx + '" y="' + (H - 28) + '" text-anchor="end" fill="#444" font-size="13" transform="rotate(-20, ' + cx + ', ' + (H - 28) + ')">' + short + '</text>';
+  }
+
+  svg += '</svg>';
+  return svg;
+}
+
+// hover 事件绑定（用事件委托）
+document.addEventListener('mouseover', function(e) {
+  var img = e.target.closest('.spu-img-hover');
+  if (!img) return;
+  var spuKey = img.getAttribute('data-spu-key');
+  if (!spuKey) return;
+
+  var trend = getSpuTrendData(spuKey);
+  if (!trend) return;
+
+  trendTitle.textContent = spuKey + ' 欠货趋势';
+  trendChartWrap.innerHTML = renderTrendSVG(trend);
+
+  // 定位
+  var rect = img.getBoundingClientRect();
+  var tipW = 580, tipH = 440;
+  var left = rect.right + 15;
+  var top = rect.top - 30;
+  // 边界检测
+  if (left + tipW > window.innerWidth) left = Math.max(10, rect.left - tipW - 15);
+  if (top + tipH > window.innerHeight) top = window.innerHeight - tipH - 10;
+  if (top < 10) top = 10;
+  if (left < 10) left = 10;
+
+  trendTooltip.style.left = left + 'px';
+  trendTooltip.style.top = top + 'px';
+  trendTooltip.classList.add('show');
+});
+
+document.addEventListener('mouseout', function(e) {
+  var img = e.target.closest('.spu-img-hover');
+  if (!img) return;
+  // 检查是否移到了tooltip内
+  trendTooltip.classList.remove('show');
+});
+</script>
+</body>
+</html>
